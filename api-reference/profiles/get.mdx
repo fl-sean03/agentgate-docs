@@ -1,0 +1,130 @@
+---
+title: "Get Profile"
+api: "GET /api/v1/profiles/{name}"
+description: "Get detailed information about a specific profile"
+---
+
+# Get Profile
+
+Returns detailed information about a specific profile, including its full configuration.
+
+## Request
+
+<ParamField path="name" type="string" required>
+  The profile name
+</ParamField>
+
+<ParamField query="resolve" type="boolean" default="false">
+  If true, resolves the full configuration including inherited values
+</ParamField>
+
+```bash
+curl "https://agentgate.mynewapi.com/api/v1/profiles/my-profile?resolve=true" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Profile detail
+
+  <Expandable title="properties">
+    <ResponseField name="name" type="string" required>
+      Profile name
+    </ResponseField>
+
+    <ResponseField name="description" type="string">
+      Profile description
+    </ResponseField>
+
+    <ResponseField name="extends" type="string">
+      Parent profile name
+    </ResponseField>
+
+    <ResponseField name="isBuiltIn" type="boolean" required>
+      Whether this is a built-in profile
+    </ResponseField>
+
+    <ResponseField name="loopStrategy" type="object">
+      Loop strategy configuration
+    </ResponseField>
+
+    <ResponseField name="verification" type="object">
+      Verification configuration
+    </ResponseField>
+
+    <ResponseField name="gitOps" type="object">
+      Git operations configuration
+    </ResponseField>
+
+    <ResponseField name="executionLimits" type="object">
+      Execution limits configuration
+    </ResponseField>
+
+    <ResponseField name="resolved" type="object">
+      Resolved configuration (if `resolve=true`)
+      <Expandable title="properties">
+        <ResponseField name="inheritanceChain" type="array">
+          List of profiles in inheritance chain
+        </ResponseField>
+        <ResponseField name="configHash" type="string">
+          Hash of the resolved configuration
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "name": "my-custom-profile",
+    "description": "Custom profile for production",
+    "extends": "ci-focused",
+    "isBuiltIn": false,
+    "loopStrategy": {
+      "type": "hybrid",
+      "baseIterations": 5,
+      "bonusIterations": 3
+    },
+    "verification": {
+      "levels": ["L0", "L1", "L2"]
+    },
+    "gitOps": {
+      "autoCommit": true,
+      "autoPush": true,
+      "createPR": true
+    },
+    "executionLimits": {
+      "maxIterations": 20,
+      "maxWallClockSeconds": 7200
+    },
+    "resolved": {
+      "inheritanceChain": ["default", "ci-focused", "my-custom-profile"],
+      "configHash": "sha256:abc123..."
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Profile Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Profile not found: unknown-profile"
+  }
+}
+```

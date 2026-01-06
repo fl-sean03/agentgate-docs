@@ -1,0 +1,104 @@
+---
+title: "Get Queue Position"
+api: "GET /api/v1/queue/position/{workOrderId}"
+description: "Get the position of a specific work order in the queue"
+---
+
+# Get Queue Position
+
+Returns the position of a specific work order in the queue.
+
+## Request
+
+<ParamField path="workOrderId" type="string" required>
+  The ID of the work order to look up
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/queue/position/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Queue position data
+
+  <Expandable title="properties">
+    <ResponseField name="workOrderId" type="string" required>
+      The work order ID
+    </ResponseField>
+
+    <ResponseField name="position" type="number" required>
+      Position in queue (1-based). 0 if currently running.
+    </ResponseField>
+
+    <ResponseField name="state" type="string" required>
+      Current state: `waiting`, `running`, or `completed`
+    </ResponseField>
+
+    <ResponseField name="enqueuedAt" type="string" required>
+      ISO 8601 timestamp when work order was enqueued
+    </ResponseField>
+
+    <ResponseField name="estimatedStartTime" type="string">
+      Estimated start time (if waiting)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+### Waiting in Queue
+
+```json
+{
+  "success": true,
+  "data": {
+    "workOrderId": "wo_abc123",
+    "position": 5,
+    "state": "waiting",
+    "enqueuedAt": "2024-01-15T10:25:00.000Z",
+    "estimatedStartTime": "2024-01-15T10:35:00.000Z"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Currently Running
+
+```json
+{
+  "success": true,
+  "data": {
+    "workOrderId": "wo_abc123",
+    "position": 0,
+    "state": "running",
+    "enqueuedAt": "2024-01-15T10:20:00.000Z"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Error Responses
+
+### Work Order Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Work order not found in queue: wo_abc123"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+<Warning>
+  This endpoint only returns position for work orders currently in the queue. For completed or cancelled work orders, use the [Get Work Order](/api-reference/work-orders/get) endpoint instead.
+</Warning>

@@ -1,0 +1,167 @@
+---
+title: "Start Run"
+api: "POST /api/v1/work-orders/{id}/runs"
+description: "Start a new run for an existing work order"
+---
+
+# Start Run
+
+Starts a new run for an existing work order. This is useful for retrying failed work orders or re-running successful ones.
+
+<Note>
+  The work order must be in `queued` or `failed` status to start a new run. Running or completed work orders cannot have new runs started.
+</Note>
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The work order ID (e.g., `wo_abc123`)
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123/runs \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Run information
+
+  <Expandable title="properties">
+    <ResponseField name="runId" type="string" required>
+      ID of the newly created run
+    </ResponseField>
+
+    <ResponseField name="status" type="string" required>
+      Initial run status: `queued` or `building`
+    </ResponseField>
+
+    <ResponseField name="startedAt" type="string" required>
+      ISO 8601 timestamp when the run started
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "runId": "run_xyz789",
+    "status": "building",
+    "startedAt": "2024-01-15T10:30:00.000Z"
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Work Order Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Work order not found: wo_invalid"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Invalid Status
+
+Returns 409 Conflict if the work order is not in a runnable state.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot start run for work order in status 'running'. Only queued or failed work orders can be run."
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Insufficient Credits
+
+Returns 402 Payment Required if credits are insufficient.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Insufficient credits to run work order"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Status Requirements
+
+| Work Order Status | Can Start Run? |
+|-------------------|----------------|
+| `queued` | ✅ Yes |
+| `failed` | ✅ Yes (retry) |
+| `running` | ❌ No |
+| `succeeded` | ❌ No |
+| `canceled` | ❌ No |
+
+## Use Cases
+
+### Retry a Failed Work Order
+
+```bash
+# Check work order status
+curl https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# If failed, start a new run
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123/runs \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Monitor the New Run
+
+After starting a run, you can monitor its progress:
+
+```bash
+# Get run details
+curl https://agentgate.mynewapi.com/api/v1/runs/run_xyz789 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Or get work order details (includes all runs)
+curl https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Run Lifecycle
+
+When you start a run:
+
+1. **Request received** - Run ID is generated
+2. **Status: queued** - Run is queued for execution
+3. **Status: building** - Workspace is being prepared
+4. **Status: running** - Agent is executing
+5. **Status: succeeded/failed** - Run completes
+
+The response returns immediately with the run ID. The run executes asynchronously.
+
+<Tip>
+  Use [WebSocket streaming](/api-reference/overview#websocket) or polling to monitor run progress in real-time.
+</Tip>
+
+## Related
+
+- [Get Run](/api-reference/runs/get) - Monitor run progress
+- [List Runs](/api-reference/runs/list) - List all runs for a work order
+- [Cancel Run](/api-reference/runs/cancel) - Cancel a running run

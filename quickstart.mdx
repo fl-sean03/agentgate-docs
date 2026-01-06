@@ -41,7 +41,7 @@ Let's submit a simple work order. This example asks AgentGate to add a README fi
 <CodeGroup>
 
 ```bash cURL
-curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+curl -X POST https://agentgate.mynewapi.com/v1/work-orders \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -78,7 +78,7 @@ console.log('Run ID:', workOrder.runId);
 import requests
 
 response = requests.post(
-    "https://api.agentgate.mynewapi.com/v1/work-orders",
+    "https://agentgate.mynewapi.com/v1/work-orders",
     headers={
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
@@ -118,7 +118,7 @@ The run executes asynchronously. Check the status by polling the run endpoint:
 <CodeGroup>
 
 ```bash cURL
-curl https://api.agentgate.mynewapi.com/v1/runs/run_def456uvw \
+curl https://agentgate.mynewapi.com/v1/runs/run_def456uvw \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -133,7 +133,7 @@ if (run.status === 'succeeded') {
 
 ```python Python
 response = requests.get(
-    f"https://api.agentgate.mynewapi.com/v1/runs/run_def456uvw",
+    f"https://agentgate.mynewapi.com/v1/runs/run_def456uvw",
     headers={"Authorization": f"Bearer {api_key}"}
 )
 

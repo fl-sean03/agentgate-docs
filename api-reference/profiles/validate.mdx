@@ -1,0 +1,145 @@
+---
+title: "Validate Profile"
+api: "POST /api/v1/profiles/{name}/validate"
+description: "Validate a profile configuration"
+---
+
+# Validate Profile
+
+Validates a profile configuration, checking for errors like circular inheritance and missing parent profiles.
+
+## Request
+
+<ParamField path="name" type="string" required>
+  The profile name to validate
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/profiles/my-profile/validate \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Validation result
+
+  <Expandable title="properties">
+    <ResponseField name="valid" type="boolean" required>
+      Whether the profile is valid
+    </ResponseField>
+
+    <ResponseField name="errors" type="array" required>
+      Array of validation errors
+      <Expandable title="properties">
+        <ResponseField name="path" type="string">
+          Configuration path where error occurred
+        </ResponseField>
+        <ResponseField name="message" type="string">
+          Error message
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="warnings" type="array" required>
+      Array of warnings
+      <Expandable title="properties">
+        <ResponseField name="path" type="string">
+          Configuration path
+        </ResponseField>
+        <ResponseField name="message" type="string">
+          Warning message
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="resolved" type="object">
+      Resolved profile detail (if validation passed)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+### Valid Profile
+
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "resolved": {
+      "name": "my-profile",
+      "description": "My custom profile",
+      "extends": "default",
+      "isBuiltIn": false,
+      "loopStrategy": { "type": "hybrid" },
+      "resolved": {
+        "inheritanceChain": ["default", "my-profile"],
+        "configHash": "sha256:abc123..."
+      }
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+### Invalid Profile
+
+```json
+{
+  "success": true,
+  "data": {
+    "valid": false,
+    "errors": [
+      {
+        "path": "extends",
+        "message": "Circular inheritance detected: my-profile -> parent-profile -> my-profile"
+      }
+    ],
+    "warnings": []
+  },
+  "requestId": "req_abc123"
+}
+```
+
+### Profile with Warnings
+
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "errors": [],
+    "warnings": [
+      {
+        "path": "extends",
+        "message": "Parent profile 'deprecated-profile' is deprecated"
+      }
+    ],
+    "resolved": {
+      "name": "my-profile",
+      "resolved": {
+        "inheritanceChain": ["deprecated-profile", "my-profile"],
+        "configHash": "sha256:def456..."
+      }
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Validation Checks
+
+| Check | Description |
+|-------|-------------|
+| Self-extension | Profile cannot extend itself |
+| Circular inheritance | No cycles in inheritance chain |
+| Missing parent | Parent profiles must exist |
+| Schema validation | Configuration must match schema |

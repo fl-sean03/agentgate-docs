@@ -1,0 +1,98 @@
+---
+title: "Delete Profile"
+api: "DELETE /api/v1/profiles/{name}"
+description: "Delete a custom profile"
+---
+
+# Delete Profile
+
+Deletes a custom profile. Built-in profiles cannot be deleted.
+
+<Note>
+  This endpoint requires authentication. Profiles with dependents cannot be deleted.
+</Note>
+
+## Request
+
+<ParamField path="name" type="string" required>
+  The profile name to delete
+</ParamField>
+
+```bash
+curl -X DELETE https://agentgate.mynewapi.com/api/v1/profiles/my-custom-profile \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Delete result
+
+  <Expandable title="properties">
+    <ResponseField name="name" type="string" required>
+      Deleted profile name
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      Success message
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "name": "my-custom-profile",
+    "message": "Profile deleted successfully"
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Cannot Delete Built-in Profile
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Cannot delete built-in profile: default"
+  }
+}
+```
+
+### Profile Has Dependents
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot delete profile: other profiles depend on it",
+    "details": {
+      "dependents": ["child-profile-1", "child-profile-2"]
+    }
+  }
+}
+```
+
+### Profile Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Profile not found: unknown-profile"
+  }
+}
+```

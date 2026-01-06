@@ -38,7 +38,7 @@ Get your current credit balance:
 <CodeGroup>
 
 ```bash cURL
-curl https://api.agentgate.mynewapi.com/v1/credits \
+curl https://agentgate.mynewapi.com/v1/credits \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -123,7 +123,7 @@ Get transaction history:
 <CodeGroup>
 
 ```bash cURL
-curl "https://api.agentgate.mynewapi.com/v1/credits/usage?startDate=2024-01-01" \
+curl "https://agentgate.mynewapi.com/v1/credits/usage?startDate=2024-01-01" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -180,7 +180,7 @@ Response:
 Track usage per tenant for billing:
 
 ```bash
-curl "https://api.agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp&startDate=2024-01-01" \
+curl "https://agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp&startDate=2024-01-01" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

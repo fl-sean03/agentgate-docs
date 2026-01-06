@@ -1,0 +1,70 @@
+---
+title: "Get Queue Stats"
+api: "GET /api/v1/queue/stats"
+description: "Get raw queue statistics"
+---
+
+# Get Queue Stats
+
+Returns raw queue statistics without health analysis.
+
+## Request
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/queue/stats \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Queue statistics
+
+  <Expandable title="properties">
+    <ResponseField name="running" type="number" required>
+      Number of currently running work orders
+    </ResponseField>
+
+    <ResponseField name="waiting" type="number" required>
+      Number of work orders waiting in queue
+    </ResponseField>
+
+    <ResponseField name="maxConcurrent" type="number" required>
+      Maximum concurrent work orders allowed
+    </ResponseField>
+
+    <ResponseField name="maxQueueSize" type="number" required>
+      Maximum queue size
+    </ResponseField>
+
+    <ResponseField name="accepting" type="boolean" required>
+      Whether queue is accepting new work orders
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "running": 3,
+    "waiting": 12,
+    "maxConcurrent": 10,
+    "maxQueueSize": 100,
+    "accepting": true
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Use Cases
+
+- **Monitoring dashboards**: Display real-time queue metrics
+- **Capacity planning**: Track queue utilization over time
+- **Auto-scaling**: Make scaling decisions based on queue depth

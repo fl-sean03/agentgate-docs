@@ -15,7 +15,7 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.agentgate.mynewapi.com
+  - url: https://agentgate.mynewapi.com
     description: Production
 
 security:

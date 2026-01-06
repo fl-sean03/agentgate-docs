@@ -66,7 +66,14 @@
         "concepts/work-orders",
         "concepts/runs",
         "concepts/iterations",
-        "concepts/workspaces"
+        "concepts/workspaces",
+        "concepts/task-spec",
+        "concepts/task-spec-examples",
+        "concepts/convergence",
+        "concepts/gates",
+        "concepts/agents",
+        "concepts/execution",
+        "concepts/delivery"
       ]
     },
     {
@@ -103,8 +110,14 @@
     {
       "group": "Work Orders",
       "pages": [
+        "api-reference/work-orders/list",
         "api-reference/work-orders/create",
-        "api-reference/work-orders/get"
+        "api-reference/work-orders/get",
+        "api-reference/work-orders/cancel",
+        "api-reference/work-orders/kill",
+        "api-reference/work-orders/start-run",
+        "api-reference/work-orders/audit",
+        "api-reference/work-orders/purge"
       ]
     },
     {
@@ -144,6 +157,54 @@
       ]
     },
     {
+      "group": "Queue",
+      "pages": [
+        "api-reference/queue/health",
+        "api-reference/queue/stats",
+        "api-reference/queue/position"
+      ]
+    },
+    {
+      "group": "Usage",
+      "pages": [
+        "api-reference/usage/list",
+        "api-reference/usage/summary",
+        "api-reference/usage/work-order"
+      ]
+    },
+    {
+      "group": "Profiles",
+      "pages": [
+        "api-reference/profiles/list",
+        "api-reference/profiles/get",
+        "api-reference/profiles/create",
+        "api-reference/profiles/update",
+        "api-reference/profiles/delete",
+        "api-reference/profiles/validate"
+      ]
+    },
+    {
+      "group": "Plugins",
+      "pages": [
+        "api-reference/plugins/list",
+        "api-reference/plugins/get",
+        "api-reference/plugins/register",
+        "api-reference/plugins/update",
+        "api-reference/plugins/delete",
+        "api-reference/plugins/enable",
+        "api-reference/plugins/disable",
+        "api-reference/plugins/run"
+      ]
+    },
+    {
+      "group": "Audit",
+      "pages": [
+        "api-reference/audit/summary",
+        "api-reference/audit/snapshots",
+        "api-reference/audit/changes"
+      ]
+    },
+    {
       "group": "SDKs",
       "pages": [
         "sdks/overview",
@@ -157,7 +218,7 @@
     "twitter": "https://twitter.com/agentgate"
   },
   "api": {
-    "baseUrl": "https://api.agentgate.mynewapi.com",
+    "baseUrl": "https://agentgate.mynewapi.com",
     "auth": {
       "method": "bearer"
     }

@@ -1,0 +1,144 @@
+---
+title: "Get Audit Summary"
+api: "GET /api/v1/audit/runs/{runId}"
+description: "Get audit record summary for a run"
+---
+
+# Get Audit Summary
+
+Returns a summary of the configuration audit trail for a specific run, including initial and final configurations.
+
+## Request
+
+<ParamField path="runId" type="string" required>
+  The run ID to get audit summary for
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/audit/runs/run_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Audit record summary
+
+  <Expandable title="properties">
+    <ResponseField name="runId" type="string" required>
+      Run ID
+    </ResponseField>
+
+    <ResponseField name="workOrderId" type="string" required>
+      Associated work order ID
+    </ResponseField>
+
+    <ResponseField name="startedAt" type="string" required>
+      ISO 8601 timestamp when run started
+    </ResponseField>
+
+    <ResponseField name="completedAt" type="string">
+      ISO 8601 timestamp when run completed (null if still running)
+    </ResponseField>
+
+    <ResponseField name="initialConfig" type="object" required>
+      Initial configuration snapshot
+    </ResponseField>
+
+    <ResponseField name="finalConfig" type="object">
+      Final configuration snapshot (null if still running)
+    </ResponseField>
+
+    <ResponseField name="snapshotCount" type="number" required>
+      Total number of configuration snapshots
+    </ResponseField>
+
+    <ResponseField name="changeCount" type="number" required>
+      Total number of configuration changes
+    </ResponseField>
+
+    <ResponseField name="configHashChanged" type="boolean" required>
+      Whether configuration hash changed from start to end
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "runId": "run_abc123",
+    "workOrderId": "wo_xyz789",
+    "startedAt": "2024-01-15T10:30:00.000Z",
+    "completedAt": "2024-01-15T11:15:00.000Z",
+    "initialConfig": {
+      "id": "snap_001",
+      "workOrderId": "wo_xyz789",
+      "runId": "run_abc123",
+      "iteration": 0,
+      "snapshotAt": "2024-01-15T10:30:00.000Z",
+      "configHash": "sha256:abc123...",
+      "config": {
+        "loopStrategy": {
+          "mode": "hybrid",
+          "maxIterations": 10
+        },
+        "verification": {
+          "skipLevels": []
+        },
+        "gitOps": {
+          "mode": "github-pr"
+        },
+        "executionLimits": {
+          "maxWallClockSeconds": 3600
+        }
+      }
+    },
+    "finalConfig": {
+      "id": "snap_005",
+      "iteration": 4,
+      "snapshotAt": "2024-01-15T11:15:00.000Z",
+      "configHash": "sha256:def456...",
+      "config": {
+        "loopStrategy": {
+          "mode": "hybrid",
+          "maxIterations": 15
+        },
+        "verification": {
+          "skipLevels": ["L2"]
+        },
+        "gitOps": {
+          "mode": "github-pr"
+        },
+        "executionLimits": {
+          "maxWallClockSeconds": 3600
+        }
+      }
+    },
+    "snapshotCount": 5,
+    "changeCount": 2,
+    "configHashChanged": true
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Audit Record Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Audit record not found for run: run_abc123"
+  }
+}
+```

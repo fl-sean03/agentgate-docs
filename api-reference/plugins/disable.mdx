@@ -1,0 +1,46 @@
+---
+title: "Disable Plugin"
+api: "POST /api/v1/verification/plugins/{id}/disable"
+description: "Disable a verification plugin"
+---
+
+# Disable Plugin
+
+Disables a verification plugin. Disabled plugins will not run during verification.
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The plugin ID to disable
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/verification/plugins/custom:security-scan/disable \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": false
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Plugin Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Plugin 'unknown-plugin' not found"
+  }
+}
+```

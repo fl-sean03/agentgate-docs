@@ -1,0 +1,107 @@
+---
+title: "Get Work Order Usage"
+api: "GET /api/v1/usage/work-orders/{workOrderId}"
+description: "Get usage summary for a specific work order"
+---
+
+# Get Work Order Usage
+
+Returns aggregated usage summary for a specific work order.
+
+## Request
+
+<ParamField path="workOrderId" type="string" required>
+  The work order ID to get usage for
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/usage/work-orders/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Work order usage summary
+
+  <Expandable title="properties">
+    <ResponseField name="totalInputTokens" type="number" required>
+      Total input tokens used
+    </ResponseField>
+
+    <ResponseField name="totalOutputTokens" type="number" required>
+      Total output tokens used
+    </ResponseField>
+
+    <ResponseField name="totalCachedInputTokens" type="number" required>
+      Total cached input tokens
+    </ResponseField>
+
+    <ResponseField name="totalCostUsd" type="number" required>
+      Total estimated cost in USD
+    </ResponseField>
+
+    <ResponseField name="executionCount" type="number" required>
+      Number of iterations/executions
+    </ResponseField>
+
+    <ResponseField name="workOrderCount" type="number" required>
+      Always 1 for single work order
+    </ResponseField>
+
+    <ResponseField name="totalDurationMs" type="number" required>
+      Total execution duration in milliseconds
+    </ResponseField>
+
+    <ResponseField name="byModel" type="object" required>
+      Usage breakdown by model
+    </ResponseField>
+
+    <ResponseField name="periodStart" type="string" required>
+      First execution timestamp
+    </ResponseField>
+
+    <ResponseField name="periodEnd" type="string" required>
+      Last execution timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalInputTokens": 45200,
+    "totalOutputTokens": 8500,
+    "totalCachedInputTokens": 28000,
+    "totalCostUsd": 1.23,
+    "executionCount": 3,
+    "workOrderCount": 1,
+    "totalDurationMs": 125000,
+    "byModel": {
+      "claude-sonnet-4-20250514": {
+        "inputTokens": 45200,
+        "outputTokens": 8500,
+        "cachedInputTokens": 28000,
+        "costUsd": 1.23,
+        "executionCount": 3
+      }
+    },
+    "periodStart": "2024-01-15T10:30:00.000Z",
+    "periodEnd": "2024-01-15T10:35:25.000Z"
+  }
+}
+```
+
+## Use Cases
+
+- Track costs per task
+- Analyze iteration efficiency
+- Compare work order complexity
+- Per-task billing attribution

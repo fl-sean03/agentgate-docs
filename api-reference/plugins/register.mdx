@@ -1,0 +1,126 @@
+---
+title: "Register Plugin"
+api: "POST /api/v1/verification/plugins"
+description: "Register a new verification plugin"
+---
+
+# Register Plugin
+
+Registers a new webhook-based verification plugin.
+
+## Request
+
+<ParamField body="id" type="string" required>
+  Unique plugin identifier
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Human-readable plugin name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Plugin description
+</ParamField>
+
+<ParamField body="level" type="string" default="custom">
+  Verification level: `L0`, `L1`, `L2`, `L3`, or `custom`
+</ParamField>
+
+<ParamField body="priority" type="number" default="100">
+  Execution priority (lower runs first)
+</ParamField>
+
+<ParamField body="enabled" type="boolean" default="true">
+  Whether plugin is enabled
+</ParamField>
+
+<ParamField body="continueOnFail" type="boolean" default="false">
+  Whether to continue verification if this plugin fails
+</ParamField>
+
+<ParamField body="options" type="object">
+  Plugin-specific options
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  URL to call for verification (required for webhook plugins)
+</ParamField>
+
+<ParamField body="webhookTimeoutMs" type="number" default="30000">
+  Timeout for webhook calls (1000-300000 ms)
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/verification/plugins \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "custom:security-scan",
+    "name": "Security Scanner",
+    "description": "Custom security vulnerability scanner",
+    "level": "custom",
+    "priority": 100,
+    "webhookUrl": "https://security.example.com/api/scan",
+    "webhookTimeoutMs": 60000,
+    "options": {
+      "severity": "high"
+    }
+  }'
+```
+
+## Response
+
+Returns the created plugin configuration.
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "custom:security-scan",
+    "name": "Security Scanner",
+    "description": "Custom security vulnerability scanner",
+    "level": "custom",
+    "priority": 100,
+    "enabled": true,
+    "continueOnFail": false,
+    "options": {
+      "severity": "high"
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Webhook Protocol
+
+When the plugin runs, AgentGate POSTs to your webhook URL:
+
+```json
+{
+  "pluginId": "custom:security-scan",
+  "context": {
+    "workDir": "/workspace/project",
+    "modifiedFiles": ["src/auth.ts", "src/api.ts"],
+    "harness": "default",
+    "metadata": {}
+  }
+}
+```
+
+Your webhook should respond with:
+
+```json
+{
+  "status": "passed",
+  "summary": "No vulnerabilities found",
+  "checks": [
+    {
+      "name": "SQL Injection",
+      "status": "passed",
+      "message": "No SQL injection vulnerabilities"
+    }
+  ]
+}
+```

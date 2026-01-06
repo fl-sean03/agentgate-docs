@@ -1,0 +1,66 @@
+---
+title: "Get Plugin"
+api: "GET /api/v1/verification/plugins/{id}"
+description: "Get a specific verification plugin"
+---
+
+# Get Plugin
+
+Returns details about a specific verification plugin.
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The plugin ID
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/verification/plugins/custom:security-scan \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Plugin configuration
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "custom:security-scan",
+    "name": "Security Scanner",
+    "description": "Custom security vulnerability scanner",
+    "level": "custom",
+    "priority": 100,
+    "enabled": true,
+    "continueOnFail": true,
+    "options": {
+      "severity": "high",
+      "excludePaths": ["node_modules", "dist"]
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Plugin Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Plugin 'unknown-plugin' not found"
+  }
+}
+```

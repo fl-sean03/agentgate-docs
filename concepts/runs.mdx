@@ -56,7 +56,7 @@ graph LR
 Retrieve run status by ID:
 
 ```bash
-curl https://api.agentgate.mynewapi.com/v1/runs/run_abc123 \
+curl https://agentgate.mynewapi.com/v1/runs/run_abc123 \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -142,7 +142,7 @@ Runs have a maximum execution time. If exceeded:
 Cancel a run that's in progress:
 
 ```bash
-curl -X POST https://api.agentgate.mynewapi.com/v1/runs/run_abc123/cancel \
+curl -X POST https://agentgate.mynewapi.com/v1/runs/run_abc123/cancel \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -172,7 +172,7 @@ Check costs after completion in the run result or via the credits usage API.
 Retrieve all runs with filtering:
 
 ```bash
-curl "https://api.agentgate.mynewapi.com/v1/runs?status=succeeded&limit=10" \
+curl "https://agentgate.mynewapi.com/v1/runs?status=succeeded&limit=10" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

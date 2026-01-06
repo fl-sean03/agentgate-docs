@@ -1,0 +1,547 @@
+---
+title: Gates
+description: "Understanding gates - unified verification checkpoints for code quality in AgentGate"
+---
+
+# Gates
+
+Gates are verification checkpoints that determine whether agent-generated code meets your quality standards. They unify all verification mechanisms into a consistent interface: static checks, test execution, CI integration, human approval, and loop detection.
+
+## What Are Gates
+
+Think of gates as quality control stations. Code must pass through each gate before being considered complete. Gates replace the older L0-L3 verification level concept with a more flexible, configurable system.
+
+Each gate defines:
+- **What to check**: The verification type and configuration
+- **What to do on failure**: Iterate, stop, or escalate
+- **When to run**: Conditions for gate execution
+
+## Gate Check Types
+
+AgentGate supports five types of gate checks:
+
+<Tabs>
+  <Tab title="Verification Levels">
+    **Run L0-L3 verification checks**
+
+    The classic verification levels wrapped in a gate:
+
+    ```yaml
+    gates:
+      - name: code-quality
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+          timeout: 120000  # milliseconds
+        onFailure:
+          action: iterate
+    ```
+
+    **Verification Levels:**
+
+    | Level | Name | Checks |
+    |-------|------|--------|
+    | L0 | Contracts | Required files, forbidden patterns, schemas |
+    | L1 | Tests | Test command execution, exit codes |
+    | L2 | Blackbox | Fixture-based functional testing |
+    | L3 | Sanity | Structural validation, coverage rules |
+
+    <Tip>
+      Start with L0 and L1 for fast feedback. Add L2 and L3 for comprehensive verification.
+    </Tip>
+  </Tab>
+
+  <Tab title="GitHub Actions">
+    **Poll GitHub Actions workflows**
+
+    Wait for CI pipelines to complete:
+
+    ```yaml
+    gates:
+      - name: ci-pipeline
+        check:
+          type: github-actions
+          workflows:            # Optional: specific workflows
+            - ci.yml
+            - test.yml
+          pollInterval: "30s"   # How often to check
+          timeout: "30m"        # Maximum wait time
+        onFailure:
+          action: iterate
+          maxAttempts: 3
+    ```
+
+    **How it works:**
+    1. Push code to GitHub branch
+    2. Poll workflow status at `pollInterval`
+    3. Pass when all specified workflows succeed
+    4. Fail if any workflow fails or timeout reached
+  </Tab>
+
+  <Tab title="Custom Command">
+    **Run a shell command**
+
+    Execute any verification command:
+
+    ```yaml
+    gates:
+      - name: security-scan
+        check:
+          type: custom
+          command: "npm run security:audit"
+          expectedExit: 0      # Expected exit code
+          timeout: "5m"
+        onFailure:
+          action: stop         # Security failures stop immediately
+    ```
+
+    **Common uses:**
+    - Security scanners (npm audit, Snyk)
+    - Custom linters
+    - Database migrations
+    - Integration tests
+    - Performance benchmarks
+  </Tab>
+
+  <Tab title="Approval">
+    **Require human approval**
+
+    Pause for human review:
+
+    ```yaml
+    gates:
+      - name: manual-review
+        check:
+          type: approval
+          approvers:           # GitHub usernames
+            - senior-dev
+            - security-team
+          minApprovals: 2      # Required approvals
+          message: "Please review the authentication changes"
+        onFailure:
+          action: stop
+    ```
+
+    <Warning>
+      Approval gates can significantly slow down automation. Use sparingly for high-risk changes.
+    </Warning>
+  </Tab>
+
+  <Tab title="Convergence">
+    **Similarity-based loop detection**
+
+    Detect when the agent is stuck in a loop:
+
+    ```yaml
+    gates:
+      - name: loop-detection
+        check:
+          type: convergence
+          strategy: similarity  # or 'fingerprint'
+          threshold: 0.95       # Similarity threshold
+        onFailure:
+          action: stop
+    ```
+
+    **Strategies:**
+    - `similarity`: Compare text output similarity
+    - `fingerprint`: Compare code structure fingerprints
+  </Tab>
+</Tabs>
+
+## Failure Policies
+
+When a gate fails, the failure policy determines what happens next:
+
+### Action Types
+
+```yaml
+onFailure:
+  action: iterate   # Continue with feedback
+  # OR
+  action: stop      # Stop execution immediately
+  # OR
+  action: escalate  # Notify and continue
+```
+
+| Action | Behavior | Use Case |
+|--------|----------|----------|
+| `iterate` | Generate feedback, run another iteration | Most verification failures |
+| `stop` | Stop execution immediately | Critical failures, security issues |
+| `escalate` | Notify stakeholders, continue | Warnings, partial failures |
+
+### Retry Configuration
+
+```yaml
+onFailure:
+  action: iterate
+  maxAttempts: 5           # Max retries for this specific gate
+  feedback: auto           # How to generate feedback
+  backoff:
+    initial: "5s"          # Initial delay before retry
+    max: "1m"              # Maximum delay
+    multiplier: 2          # Exponential multiplier
+```
+
+### Feedback Options
+
+```yaml
+onFailure:
+  feedback: auto           # Use built-in feedback generator
+  # OR
+  feedback: manual         # No automatic feedback
+  # OR
+  feedback:
+    generator: "custom-feedback-service"
+```
+
+## Success Policies
+
+Control what happens when a gate passes:
+
+```yaml
+onSuccess:
+  action: continue         # Continue to next gate
+  # OR
+  action: skip-remaining   # Skip remaining gates
+```
+
+| Action | Behavior |
+|--------|----------|
+| `continue` | Process next gate in sequence (default) |
+| `skip-remaining` | Skip all remaining gates, consider task complete |
+
+## Gate Conditions
+
+Control when gates run:
+
+```yaml
+gates:
+  - name: expensive-check
+    check:
+      type: custom
+      command: "npm run e2e-tests"
+    condition:
+      when: on-change      # Only run if files changed
+      skipIf: "iteration < 3"  # Skip in early iterations
+    onFailure:
+      action: iterate
+```
+
+### Condition Options
+
+| Option | Values | Description |
+|--------|--------|-------------|
+| `when` | `always`, `on-change`, `manual` | When to run the gate |
+| `skipIf` | expression | Condition to skip the gate |
+
+## Gate Pipeline
+
+Gates execute in sequence as a pipeline:
+
+<Steps>
+  <Step title="Check Condition">
+    Evaluate if the gate should run based on `condition.when` and `condition.skipIf`.
+  </Step>
+  <Step title="Execute Check">
+    Run the gate check (verification, CI, custom command, etc.).
+  </Step>
+  <Step title="Collect Results">
+    Gather pass/fail status, failures, and details.
+  </Step>
+  <Step title="Generate Feedback">
+    If failed with `feedback: auto`, create structured feedback for the agent.
+  </Step>
+  <Step title="Apply Policy">
+    Execute failure or success policy (iterate, stop, continue).
+  </Step>
+  <Step title="Continue Pipeline">
+    If not stopped, proceed to next gate.
+  </Step>
+</Steps>
+
+## Gate Feedback
+
+When gates fail, AgentGate generates structured feedback for the agent:
+
+```markdown
+## Verification Failed
+
+### CRITICAL Priority
+- **lint** (verification-levels): 3 ESLint errors found
+
+### Errors
+- src/auth/login.ts:45: 'password' is declared but never used
+  - Suggestion: Remove unused variable or use it in the authentication logic
+
+- src/auth/login.ts:67: Missing return type on function
+  - Suggestion: Add explicit return type `: Promise<User | null>`
+
+### Warnings
+- src/utils/hash.ts:12: Consider using bcrypt instead of MD5 for password hashing
+```
+
+### Feedback Format
+
+```typescript
+interface GateFeedback {
+  summary: string;         // High-level failure summary
+  failures: FormattedFailure[];
+  suggestions: string[];   // Actionable improvement suggestions
+  formatted: string;       // Ready for agent consumption
+}
+
+interface FormattedFailure {
+  type: string;            // Error type
+  message: string;         // Error message
+  file?: string;           // Affected file
+  line?: number;           // Line number
+  details?: string;        // Additional context
+}
+```
+
+## Common Gate Patterns
+
+### Basic Quality Gates
+
+```yaml
+gates:
+  # Fast checks first
+  - name: lint
+    check:
+      type: verification-levels
+      levels: [L0]
+    onFailure:
+      action: iterate
+      maxAttempts: 10
+
+  # Then tests
+  - name: unit-tests
+    check:
+      type: verification-levels
+      levels: [L1]
+    onFailure:
+      action: iterate
+      maxAttempts: 5
+
+  # Finally CI
+  - name: ci
+    check:
+      type: github-actions
+    onFailure:
+      action: iterate
+      maxAttempts: 2
+```
+
+### Security-First Gates
+
+```yaml
+gates:
+  # Security must pass first
+  - name: security-scan
+    check:
+      type: custom
+      command: "npm audit --audit-level=high"
+    onFailure:
+      action: stop  # Never continue with security issues
+
+  # Then quality checks
+  - name: quality
+    check:
+      type: verification-levels
+      levels: [L0, L1, L2]
+    onFailure:
+      action: iterate
+```
+
+### Progressive Gates
+
+```yaml
+gates:
+  # Quick smoke test
+  - name: smoke-test
+    check:
+      type: custom
+      command: "npm run test:smoke"
+    onFailure:
+      action: iterate
+      maxAttempts: 3
+
+  # Full tests only after smoke passes
+  - name: full-tests
+    check:
+      type: verification-levels
+      levels: [L1, L2]
+    condition:
+      when: on-change
+    onFailure:
+      action: iterate
+      maxAttempts: 5
+
+  # CI only after local tests pass
+  - name: ci
+    check:
+      type: github-actions
+    condition:
+      skipIf: "gatesPassed < 2"
+    onFailure:
+      action: stop
+```
+
+### Human-in-the-Loop
+
+```yaml
+gates:
+  # Automated checks
+  - name: automated-checks
+    check:
+      type: verification-levels
+      levels: [L0, L1, L2]
+    onFailure:
+      action: iterate
+
+  # Human review for sensitive changes
+  - name: security-review
+    check:
+      type: approval
+      approvers: [security-team]
+      minApprovals: 1
+    condition:
+      when: manual  # Triggered manually
+    onFailure:
+      action: stop
+```
+
+## Verification Levels (L0-L3)
+
+For backward compatibility, here's what each level checks:
+
+<AccordionGroup>
+  <Accordion title="L0: Contracts">
+    Static checks that don't execute code:
+
+    - **Required files**: Ensure specific files exist
+    - **Forbidden patterns**: Block secrets, keys, credentials
+    - **Schema validation**: Validate JSON/YAML against schemas
+    - **Naming conventions**: Enforce file/folder naming rules
+
+    ```yaml
+    contracts:
+      requiredFiles:
+        - package.json
+        - src/index.ts
+      forbiddenPatterns:
+        - "**/.env"
+        - "**/secrets/**"
+        - "password = "
+    ```
+  </Accordion>
+
+  <Accordion title="L1: Tests">
+    Execute test commands:
+
+    - **Test execution**: Run test suites
+    - **Exit code checking**: Verify success/failure
+    - **Output capture**: Collect stdout/stderr
+    - **Timeout enforcement**: Prevent hanging tests
+
+    ```yaml
+    tests:
+      - name: typecheck
+        command: "npm run typecheck"
+        timeout: 120
+      - name: lint
+        command: "npm run lint"
+        timeout: 60
+      - name: unit-tests
+        command: "npm test"
+        timeout: 300
+    ```
+  </Accordion>
+
+  <Accordion title="L2: Blackbox">
+    Functional testing with fixtures:
+
+    - **Fixture-based testing**: Run against test data
+    - **Assertions**: Check outputs match expectations
+    - **JSON schema validation**: Validate API responses
+    - **File comparison**: Compare output files
+
+    ```yaml
+    blackbox:
+      - name: api-test
+        fixture: test/fixtures/api
+        command: "npm run build && node dist/server.js"
+        assertions:
+          - type: json_schema
+            path: response.json
+            schema: expected-schema.json
+    ```
+  </Accordion>
+
+  <Accordion title="L3: Sanity">
+    Structural validation:
+
+    - **File existence**: Verify expected files created
+    - **Test coverage**: Ensure minimum coverage
+    - **Pattern matching**: Check code structure
+    - **Size limits**: Prevent bloated changes
+
+    ```yaml
+    sanity:
+      requiredFiles:
+        - src/**/*.test.ts
+      testCoverage:
+        minimum: 80
+        paths:
+          - src/**/*.ts
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Order Gates by Speed">
+    Run fast gates first to get quick feedback:
+    1. L0 (contracts) - seconds
+    2. L1 (tests) - seconds to minutes
+    3. Custom commands - varies
+    4. L2/L3 (blackbox/sanity) - minutes
+    5. GitHub Actions - minutes to hours
+  </Step>
+
+  <Step title="Use Appropriate Actions">
+    - `iterate` for recoverable failures
+    - `stop` for critical/security issues
+    - `escalate` for warnings that need attention
+  </Step>
+
+  <Step title="Set Retry Limits">
+    Prevent infinite loops by setting `maxAttempts`:
+    - Lint/format: 10+ (usually quick fixes)
+    - Tests: 5-10 (may need logic changes)
+    - CI: 2-3 (external system, expensive)
+  </Step>
+
+  <Step title="Provide Context in Feedback">
+    Custom commands should output helpful error messages that guide the agent to fix issues.
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TaskSpec" icon="file-code" href="/concepts/task-spec">
+    Configure gates within TaskSpec
+  </Card>
+  <Card title="Convergence" icon="rotate" href="/concepts/convergence">
+    How gates affect convergence decisions
+  </Card>
+  <Card title="Iterations" icon="repeat" href="/concepts/iterations">
+    Understanding the iteration loop
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Handle gate failures gracefully
+  </Card>
+</CardGroup>

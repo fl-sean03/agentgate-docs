@@ -1,0 +1,131 @@
+---
+title: "Run Verification"
+api: "POST /api/v1/verification/run"
+description: "Run verification plugins manually"
+---
+
+# Run Verification
+
+Runs verification plugins manually against a workspace.
+
+## Request
+
+<ParamField body="workDir" type="string" required>
+  Absolute path to the workspace directory
+</ParamField>
+
+<ParamField body="taskPrompt" type="string">
+  Task description for context
+</ParamField>
+
+<ParamField body="modifiedFiles" type="array">
+  List of modified files to verify
+</ParamField>
+
+<ParamField body="harness" type="string">
+  Harness profile name
+</ParamField>
+
+<ParamField body="levels" type="array">
+  Verification levels to run: `L0`, `L1`, `L2`, `L3`, `custom`
+</ParamField>
+
+<ParamField body="timeoutMs" type="number" default="60000">
+  Total timeout in milliseconds (1000-600000)
+</ParamField>
+
+<ParamField body="pluginIds" type="array">
+  Specific plugin IDs to run (if empty, runs all applicable)
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/verification/run \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "workDir": "/workspace/my-project",
+    "taskPrompt": "Fix authentication bug",
+    "modifiedFiles": ["src/auth.ts"],
+    "levels": ["L0", "L1"],
+    "timeoutMs": 120000
+  }'
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Combined verification result
+
+  <Expandable title="properties">
+    <ResponseField name="overallStatus" type="string">
+      Overall status: `passed`, `failed`, `warning`, `error`
+    </ResponseField>
+    <ResponseField name="results" type="array">
+      Individual plugin results
+    </ResponseField>
+    <ResponseField name="summary" type="string">
+      Human-readable summary
+    </ResponseField>
+    <ResponseField name="durationMs" type="number">
+      Total execution time
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "overallStatus": "passed",
+    "results": [
+      {
+        "pluginId": "built-in:eslint",
+        "status": "passed",
+        "level": "L0",
+        "summary": "No linting errors",
+        "checks": [
+          {
+            "name": "ESLint",
+            "status": "passed",
+            "message": "0 errors, 0 warnings"
+          }
+        ],
+        "durationMs": 1523
+      },
+      {
+        "pluginId": "built-in:typescript",
+        "status": "passed",
+        "level": "L0",
+        "summary": "Type check passed",
+        "checks": [
+          {
+            "name": "TypeScript",
+            "status": "passed",
+            "message": "No type errors"
+          }
+        ],
+        "durationMs": 3200
+      }
+    ],
+    "summary": "All 2 plugins passed",
+    "durationMs": 4723
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Verification Levels
+
+| Level | Description |
+|-------|-------------|
+| `L0` | Contracts: linting, type checking, required files |
+| `L1` | Tests: unit test execution |
+| `L2` | Blackbox: functional/integration tests |
+| `L3` | Sanity: structural validation, coverage |
+| `custom` | Custom verification plugins |

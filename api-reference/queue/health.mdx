@@ -1,0 +1,118 @@
+---
+title: "Get Queue Health"
+api: "GET /api/v1/queue/health"
+description: "Get comprehensive queue health information including statistics, utilization, and health indicators"
+---
+
+# Get Queue Health
+
+Returns comprehensive queue health information including statistics, utilization, and health indicators.
+
+## Request
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/queue/health \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Queue health data
+
+  <Expandable title="properties">
+    <ResponseField name="status" type="string" required>
+      Overall queue health status. One of: `healthy`, `degraded`, `unhealthy`
+    </ResponseField>
+
+    <ResponseField name="stats" type="object" required>
+      Current queue statistics
+      <Expandable title="properties">
+        <ResponseField name="running" type="number">
+          Number of currently running work orders
+        </ResponseField>
+        <ResponseField name="waiting" type="number">
+          Number of work orders waiting in queue
+        </ResponseField>
+        <ResponseField name="maxConcurrent" type="number">
+          Maximum concurrent work orders allowed
+        </ResponseField>
+        <ResponseField name="maxQueueSize" type="number">
+          Maximum queue size
+        </ResponseField>
+        <ResponseField name="accepting" type="boolean">
+          Whether queue is accepting new work orders
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="utilization" type="number" required>
+      Queue capacity utilization (0-1)
+    </ResponseField>
+
+    <ResponseField name="timestamp" type="string" required>
+      ISO 8601 timestamp of the response
+    </ResponseField>
+
+    <ResponseField name="indicators" type="object" required>
+      Health indicators
+      <Expandable title="properties">
+        <ResponseField name="accepting" type="boolean">
+          Whether queue is accepting new work orders
+        </ResponseField>
+        <ResponseField name="canStartImmediately" type="boolean">
+          Whether queue has capacity to start immediately
+        </ResponseField>
+        <ResponseField name="queueDepth" type="number">
+          Queue depth (waiting count)
+        </ResponseField>
+        <ResponseField name="runningCount" type="number">
+          Running count
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "healthy",
+    "stats": {
+      "running": 2,
+      "waiting": 5,
+      "maxConcurrent": 10,
+      "maxQueueSize": 100,
+      "accepting": true
+    },
+    "utilization": 0.05,
+    "timestamp": "2024-01-15T10:30:00.000Z",
+    "indicators": {
+      "accepting": true,
+      "canStartImmediately": true,
+      "queueDepth": 5,
+      "runningCount": 2
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Health Status
+
+| Status | Description | HTTP Code |
+|--------|-------------|-----------|
+| `healthy` | Normal operation | 200 |
+| `degraded` | Queue is more than 80% full | 200 |
+| `unhealthy` | Queue is full and not accepting | 503 |
+
+<Note>
+  When the queue is unhealthy, the endpoint returns HTTP 503 but still includes the health data in the response body.
+</Note>

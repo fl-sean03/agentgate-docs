@@ -1,0 +1,54 @@
+---
+title: "Delete Plugin"
+api: "DELETE /api/v1/verification/plugins/{id}"
+description: "Unregister a verification plugin"
+---
+
+# Delete Plugin
+
+Unregisters a verification plugin.
+
+<Note>
+  Built-in plugins (IDs starting with `built-in:`) cannot be deleted.
+</Note>
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The plugin ID to delete
+</ParamField>
+
+```bash
+curl -X DELETE https://agentgate.mynewapi.com/api/v1/verification/plugins/custom:security-scan \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+Returns HTTP 204 No Content on success.
+
+## Error Responses
+
+### Plugin Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Plugin 'unknown-plugin' not found"
+  }
+}
+```
+
+### Cannot Delete Built-in Plugin
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Built-in plugins cannot be deleted"
+  }
+}
+```

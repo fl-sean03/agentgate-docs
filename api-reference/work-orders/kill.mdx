@@ -1,0 +1,193 @@
+---
+title: "Force Kill Work Order"
+api: "POST /api/v1/work-orders/{id}/kill"
+description: "Forcefully terminate a work order's agent process"
+---
+
+# Force Kill Work Order
+
+Forcefully terminates a work order's agent process. This is more aggressive than [Cancel](/api-reference/work-orders/cancel) and should be used when graceful shutdown is not working.
+
+<Warning>
+  Force kill sends SIGKILL to the agent process, which may result in lost work. Use [Cancel](/api-reference/work-orders/cancel) for graceful shutdown when possible.
+</Warning>
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The work order ID to force kill (e.g., `wo_abc123`)
+</ParamField>
+
+<ParamField body="gracePeriodMs" type="number" default="5000">
+  Milliseconds to wait for graceful shutdown before SIGKILL (0-30000)
+</ParamField>
+
+<ParamField body="immediate" type="boolean" default="false">
+  If true, skip grace period and send SIGKILL immediately
+</ParamField>
+
+<ParamField body="reason" type="string">
+  Optional reason for force kill (logged for audit)
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123/kill \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gracePeriodMs": 3000,
+    "reason": "Agent stuck in infinite loop"
+  }'
+```
+
+### Immediate Kill
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123/kill \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "immediate": true,
+    "reason": "Emergency shutdown required"
+  }'
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Force kill result
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      Work order ID
+    </ResponseField>
+
+    <ResponseField name="success" type="boolean" required>
+      Whether the kill operation succeeded
+    </ResponseField>
+
+    <ResponseField name="forcedKill" type="boolean" required>
+      Whether SIGKILL was used (true) or graceful shutdown worked (false)
+    </ResponseField>
+
+    <ResponseField name="durationMs" type="number">
+      Time taken to terminate the process in milliseconds
+    </ResponseField>
+
+    <ResponseField name="status" type="string" required>
+      New work order status: `failed` or `canceled`
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      Human-readable result message
+    </ResponseField>
+
+    <ResponseField name="error" type="string">
+      Error message if kill failed
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Responses
+
+### Graceful Termination
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wo_abc123",
+    "success": true,
+    "forcedKill": false,
+    "durationMs": 1523,
+    "status": "canceled",
+    "message": "Work order agent process terminated gracefully"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Forced Kill (SIGKILL)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wo_abc123",
+    "success": true,
+    "forcedKill": true,
+    "durationMs": 5123,
+    "status": "failed",
+    "message": "Work order agent process force killed (SIGKILL)"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Already Terminated
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wo_abc123",
+    "success": true,
+    "forcedKill": false,
+    "durationMs": 0,
+    "status": "failed",
+    "message": "Work order was already in terminal state"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Error Responses
+
+### Work Order Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Work order not found: wo_invalid"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Kill Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| `immediate: true` | Sends SIGKILL immediately |
+| `immediate: false` | Sends SIGTERM, waits `gracePeriodMs`, then SIGKILL if needed |
+| No running process | Returns success with `durationMs: 0` |
+| Process in container | Terminates container |
+| Process in subprocess | Terminates process tree |
+
+## Difference from Cancel
+
+| Aspect | Cancel | Force Kill |
+|--------|--------|------------|
+| Signal | SIGTERM only | SIGTERM then SIGKILL |
+| Wait time | System default | Configurable grace period |
+| Use case | Normal shutdown | Stuck processes |
+| Result status | `canceled` | `failed` or `canceled` |
+
+<Tip>
+  Use force kill when:
+  - The agent is stuck in an infinite loop
+  - Cancel has been attempted but the process won't stop
+  - Emergency shutdown is required
+  - Resources need to be freed immediately
+</Tip>
+
+## Related
+
+- [Cancel Work Order](/api-reference/work-orders/cancel) - Graceful cancellation
+- [Get Work Order](/api-reference/work-orders/get) - Check work order status

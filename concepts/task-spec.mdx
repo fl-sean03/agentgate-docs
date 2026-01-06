@@ -1,0 +1,521 @@
+---
+title: TaskSpec
+description: "Understanding TaskSpec - the declarative configuration format for AgentGate work orders"
+---
+
+# TaskSpec
+
+TaskSpec is AgentGate's declarative configuration format, inspired by Kubernetes resource definitions. It provides a structured way to specify everything needed to execute a coding task: the goal, how to reach it, where to run, and how to deliver results.
+
+## What Is TaskSpec
+
+TaskSpec replaces the legacy HarnessConfig with a more intuitive, Kubernetes-style resource definition. Instead of scattered configuration across multiple objects, TaskSpec consolidates everything into a single, versioned document.
+
+A TaskSpec contains four main sections:
+
+| Section | Purpose |
+|---------|---------|
+| **Goal** | What you want to achieve |
+| **Convergence** | How to reach the goal (strategy, gates, limits) |
+| **Execution** | Where to run (workspace, sandbox, agent) |
+| **Delivery** | How to ship results (git, PR, notifications) |
+
+## TaskSpec Structure
+
+Every TaskSpec follows this structure:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: my-task
+  namespace: my-project
+  labels:
+    priority: high
+  annotations:
+    description: "Detailed task description"
+spec:
+  goal: { ... }
+  convergence: { ... }
+  execution: { ... }
+  delivery: { ... }
+```
+
+### Metadata
+
+The metadata section identifies and organizes your TaskSpec:
+
+```yaml
+metadata:
+  name: fix-auth-bug          # Required: unique identifier (1-128 chars)
+  namespace: backend          # Optional: grouping for organization
+  labels:                     # Optional: key-value pairs for filtering
+    priority: high
+    type: bugfix
+    team: platform
+  annotations:                # Optional: extended metadata
+    ticket: "JIRA-1234"
+    description: "Fix null pointer in auth service"
+```
+
+<Tip>
+  Use labels for filtering and organization. Common labels include `priority`, `type`, `team`, and `environment`.
+</Tip>
+
+## Goal Specification
+
+The goal section defines what you want AgentGate to accomplish:
+
+```yaml
+spec:
+  goal:
+    prompt: |
+      Fix the authentication bug in UserService.authenticate().
+      The method throws NullPointerException when user doesn't exist.
+
+      Requirements:
+      - Return null instead of throwing
+      - Add proper logging
+      - Update unit tests
+
+    context: |
+      This is a Spring Boot application using JPA.
+      Follow existing error handling patterns in the codebase.
+
+    desiredState:
+      allGatesPassed: true
+```
+
+### Goal Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prompt` | string | **Required**. The task description for the agent |
+| `context` | string | Additional context about the project or constraints |
+| `desiredState` | object | Definition of what "done" looks like |
+
+### Desired State Options
+
+```yaml
+desiredState:
+  # Option 1: All gates must pass
+  allGatesPassed: true
+
+  # Option 2: Only specific gates must pass
+  specificGates:
+    - lint
+    - unit-tests
+
+  # Option 3: Custom state (for advanced use)
+  custom:
+    coverage: ">80%"
+    performance: "p99 < 100ms"
+```
+
+## Convergence Specification
+
+The convergence section controls how AgentGate iterates toward the goal:
+
+```yaml
+spec:
+  convergence:
+    strategy: hybrid
+    config:
+      baseIterations: 3
+      bonusIterations: 2
+      progressThreshold: 0.7
+
+    gates:
+      - name: lint-and-types
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+          maxAttempts: 5
+          feedback: auto
+
+    limits:
+      maxIterations: 10
+      maxWallClock: "2h"
+      maxCost: "$50"
+```
+
+<Info>
+  See the [Convergence](/concepts/convergence) guide for detailed strategy options and the [Gates](/concepts/gates) guide for gate configuration.
+</Info>
+
+## Execution Specification
+
+The execution section defines where and how to run the agent:
+
+```yaml
+spec:
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: myproject
+      ref: main
+
+    sandbox:
+      provider: docker
+      image: node:20
+      resources:
+        cpu: 2
+        memory: "4Gi"
+        timeout: "1h"
+      network: bridge
+
+    agent:
+      driver: claude-code-subscription
+      model: claude-sonnet-4-20250514
+      maxTokens: 200000
+```
+
+<Info>
+  See the [Execution](/concepts/execution) guide for workspace types and sandbox configuration.
+</Info>
+
+## Delivery Specification
+
+The delivery section controls how results are shipped:
+
+```yaml
+spec:
+  delivery:
+    git:
+      mode: github-pr
+      branchPrefix: "fix/"
+      commitPrefix: "[AgentGate]"
+      autoCommit: true
+      autoPush: true
+
+    pr:
+      create: true
+      draft: false
+      title: "fix: {task}"
+      labels:
+        - agent-generated
+        - needs-review
+      reviewers:
+        - senior-dev
+
+    notifications:
+      onSuccess:
+        - type: slack
+          webhook: "https://hooks.slack.com/..."
+          channel: "#deployments"
+```
+
+<Info>
+  See the [Delivery](/concepts/delivery) guide for Git modes and notification options.
+</Info>
+
+## Complete Examples
+
+### Minimal TaskSpec
+
+The simplest valid TaskSpec:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: simple-task
+
+spec:
+  goal:
+    prompt: "Add input validation to the login form"
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 3
+    gates:
+      - name: basic-checks
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 5
+
+  execution:
+    workspace:
+      source: local
+      path: /path/to/project
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: local
+```
+
+### Full-Featured TaskSpec
+
+A comprehensive example with all options:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: implement-auth-system
+  namespace: backend
+  labels:
+    priority: high
+    type: feature
+    team: platform
+  annotations:
+    ticket: "JIRA-5678"
+    estimated-complexity: high
+
+spec:
+  goal:
+    prompt: |
+      Implement JWT authentication for the REST API.
+
+      Requirements:
+      - POST /auth/login - authenticate and return JWT
+      - POST /auth/logout - invalidate token
+      - POST /auth/refresh - refresh expired token
+      - Middleware for protected routes
+
+      Use bcrypt for password hashing.
+      Store refresh tokens in Redis.
+
+    context: |
+      Tech stack: Express.js, TypeScript, PostgreSQL, Redis
+      Follow existing patterns in src/middleware/
+      Reference: src/services/UserService.ts for user queries
+
+    desiredState:
+      allGatesPassed: true
+
+  convergence:
+    strategy: ralph
+    config:
+      convergenceThreshold: 0.05
+      windowSize: 3
+      minIterations: 2
+      promptHotReload: true
+
+    gates:
+      - name: contracts
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+          feedback: auto
+
+      - name: tests
+        check:
+          type: verification-levels
+          levels: [L1, L2]
+        onFailure:
+          action: iterate
+          maxAttempts: 10
+          feedback: auto
+          backoff:
+            initial: "5s"
+            max: "30s"
+            multiplier: 2
+
+      - name: ci
+        check:
+          type: github-actions
+          workflows: [ci.yml, test.yml]
+          timeout: "30m"
+          pollInterval: "30s"
+        onFailure:
+          action: iterate
+          maxAttempts: 3
+
+    limits:
+      maxIterations: 50
+      maxWallClock: "4h"
+      maxCost: "$100"
+      maxTokens: 2000000
+
+  execution:
+    workspace:
+      source: github
+      owner: mycompany
+      repo: backend-api
+      ref: develop
+      fork: false
+
+    sandbox:
+      provider: docker
+      image: node:20-slim
+      resources:
+        cpu: 4
+        memory: "8Gi"
+        disk: "20Gi"
+        timeout: "2h"
+      network: bridge
+      mounts:
+        - source: ~/.npm
+          target: /root/.npm
+          readonly: false
+      environment:
+        NODE_ENV: development
+        LOG_LEVEL: debug
+
+    agent:
+      driver: claude-agent-sdk
+      model: claude-opus-4-20250514
+      maxTokens: 200000
+      temperature: 0.7
+      systemPrompt: |
+        You are an expert backend developer.
+        Follow the project's existing patterns.
+        Write comprehensive tests for all new code.
+      tools:
+        - name: bash
+          enabled: true
+        - name: file_system
+          enabled: true
+      capabilities:
+        fileSystem: true
+        network: true
+        shell: true
+
+  delivery:
+    git:
+      mode: github-pr
+      branchPrefix: "feature/"
+      commitPrefix: "[Auth]"
+      autoCommit: true
+      autoPush: true
+      signCommits: false
+
+    pr:
+      create: true
+      draft: false
+      title: "feat(auth): implement JWT authentication"
+      body: |
+        ## Summary
+        Implements JWT-based authentication system.
+
+        ## Changes
+        - Login/logout/refresh endpoints
+        - Auth middleware
+        - Token storage in Redis
+
+        ## Testing
+        - Unit tests for all endpoints
+        - Integration tests for auth flow
+      labels:
+        - feature
+        - backend
+        - auth
+        - needs-review
+      reviewers:
+        - lead-dev
+        - security-team
+      assignees:
+        - platform-team
+      autoMerge:
+        enabled: false
+
+    notifications:
+      onSuccess:
+        - type: slack
+          webhook: "https://hooks.slack.com/services/..."
+          channel: "#backend-deploys"
+          template: "Auth feature completed successfully!"
+      onFailure:
+        - type: email
+          to:
+            - platform-team@company.com
+          subject: "AgentGate: Auth implementation failed"
+```
+
+## Using TaskSpec
+
+### Via API
+
+Submit a TaskSpec when creating a work order:
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskSpec": {
+      "apiVersion": "agentgate.io/v1",
+      "kind": "TaskSpec",
+      "metadata": { "name": "my-task" },
+      "spec": { ... }
+    }
+  }'
+```
+
+### Via Profiles
+
+Save reusable TaskSpecs as profiles:
+
+```bash
+# Create a profile
+curl -X POST https://agentgate.mynewapi.com/v1/profiles \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "typescript-feature",
+    "taskSpec": { ... }
+  }'
+
+# Use the profile
+curl -X POST https://agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{ "profile": "typescript-feature", "taskPrompt": "Add user search" }'
+```
+
+## Default Values
+
+When fields are omitted, these defaults are applied:
+
+| Field | Default Value |
+|-------|---------------|
+| `convergence.strategy` | `hybrid` |
+| `convergence.config.baseIterations` | `3` |
+| `convergence.config.bonusIterations` | `2` |
+| `convergence.limits.maxIterations` | `100` |
+| `convergence.limits.maxWallClock` | `1h` |
+| `execution.sandbox.provider` | `docker` |
+| `execution.agent.driver` | `claude-code-subscription` |
+| `delivery.git.mode` | `local` |
+| `delivery.git.autoCommit` | `true` |
+
+## Validation
+
+TaskSpecs are validated using Zod schemas. Common validation errors:
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `Invalid apiVersion` | Wrong or missing apiVersion | Use `agentgate.io/v1` |
+| `Invalid kind` | Wrong or missing kind | Use `TaskSpec` |
+| `Name too long` | Name exceeds 128 characters | Shorten the name |
+| `Invalid strategy` | Unknown convergence strategy | Use: fixed, hybrid, ralph, adaptive, manual |
+| `Invalid gate check type` | Unknown gate check type | Check supported types |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Convergence" icon="rotate" href="/concepts/convergence">
+    Learn about convergence strategies and iteration control
+  </Card>
+  <Card title="Gates" icon="shield-check" href="/concepts/gates">
+    Configure verification gates for quality control
+  </Card>
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    Choose and configure AI agent drivers
+  </Card>
+  <Card title="Execution" icon="server" href="/concepts/execution">
+    Configure workspace and sandbox environments
+  </Card>
+</CardGroup>

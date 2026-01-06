@@ -1,0 +1,669 @@
+---
+title: Execution
+description: "Understanding execution environments - workspaces, sandboxes, and runtime configuration in AgentGate"
+---
+
+# Execution
+
+Execution configuration defines where and how AgentGate runs agent tasks. It specifies the code workspace, sandbox isolation, and agent runtime settings.
+
+## What Is Execution
+
+The execution section of a TaskSpec controls three key aspects:
+
+| Component | Purpose |
+|-----------|---------|
+| **Workspace** | Where the code lives (local, git, GitHub) |
+| **Sandbox** | Isolation and resource limits (Docker, subprocess) |
+| **Agent** | AI driver configuration |
+
+## Execution Specification
+
+```yaml
+spec:
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: myproject
+      ref: main
+
+    sandbox:
+      provider: docker
+      image: node:20
+      resources:
+        cpu: 2
+        memory: "4Gi"
+        timeout: "1h"
+      network: bridge
+
+    agent:
+      driver: claude-code-subscription
+      model: claude-sonnet-4-20250514
+      maxTokens: 200000
+```
+
+## Workspace Types
+
+AgentGate supports five workspace types for different scenarios:
+
+<Tabs>
+  <Tab title="Local">
+    **Use an existing local directory**
+
+    Work directly on an existing codebase:
+
+    ```yaml
+    workspace:
+      source: local
+      path: /path/to/project
+      readonly: false  # Optional: prevent writes
+    ```
+
+    **Options:**
+    | Option | Type | Description |
+    |--------|------|-------------|
+    | `path` | string | Absolute path to the workspace |
+    | `readonly` | boolean | Prevent file modifications (testing) |
+
+    **Best for:**
+    - Local development and testing
+    - Existing projects on the machine
+    - Quick iterations without git operations
+  </Tab>
+
+  <Tab title="Git">
+    **Clone from any Git URL**
+
+    Clone a repository from any Git server:
+
+    ```yaml
+    workspace:
+      source: git
+      url: https://github.com/myorg/myrepo.git
+      ref: develop
+      depth: 1
+      credentials:
+        type: token
+        token: ${GIT_TOKEN}
+    ```
+
+    **Options:**
+    | Option | Type | Description |
+    |--------|------|-------------|
+    | `url` | string | Git clone URL |
+    | `ref` | string | Branch, tag, or commit |
+    | `depth` | number | Shallow clone depth |
+    | `credentials` | object | Authentication credentials |
+
+    **Credential Types:**
+    ```yaml
+    # Token authentication
+    credentials:
+      type: token
+      token: ${GIT_TOKEN}
+
+    # SSH key authentication
+    credentials:
+      type: ssh
+      keyPath: ~/.ssh/id_rsa
+
+    # Environment variable
+    credentials:
+      type: env
+      envVar: GIT_CREDENTIALS
+    ```
+
+    **Best for:**
+    - GitLab, Bitbucket, or self-hosted repos
+    - Private repositories with custom auth
+    - Non-GitHub workflows
+  </Tab>
+
+  <Tab title="GitHub">
+    **Clone from GitHub with enhanced integration**
+
+    Clone from GitHub with built-in authentication and PR support:
+
+    ```yaml
+    workspace:
+      source: github
+      owner: mycompany
+      repo: backend-api
+      ref: main
+      fork: false
+    ```
+
+    **Options:**
+    | Option | Type | Description |
+    |--------|------|-------------|
+    | `owner` | string | GitHub username or organization |
+    | `repo` | string | Repository name |
+    | `ref` | string | Branch, tag, or commit |
+    | `fork` | boolean | Fork the repo before working |
+
+    **Best for:**
+    - GitHub-hosted projects
+    - Automatic PR creation
+    - GitHub Actions integration
+  </Tab>
+
+  <Tab title="GitHub New">
+    **Create a new GitHub repository**
+
+    Create a fresh repository on GitHub:
+
+    ```yaml
+    workspace:
+      source: github-new
+      owner: mycompany
+      repoName: new-project
+      private: true
+      template: mycompany/project-template
+      description: "New project created by AgentGate"
+    ```
+
+    **Options:**
+    | Option | Type | Description |
+    |--------|------|-------------|
+    | `owner` | string | GitHub username or organization |
+    | `repoName` | string | New repository name |
+    | `private` | boolean | Create as private repo |
+    | `template` | string | Template repository to use |
+    | `description` | string | Repository description |
+
+    **Best for:**
+    - Greenfield projects
+    - Bootstrapping from templates
+    - Automated project creation
+  </Tab>
+
+  <Tab title="Fresh">
+    **Create a new local directory**
+
+    Create a fresh local workspace with optional scaffolding:
+
+    ```yaml
+    workspace:
+      source: fresh
+      destPath: /tmp/new-project
+      template: node-typescript
+      projectName: my-app
+    ```
+
+    **Options:**
+    | Option | Type | Description |
+    |--------|------|-------------|
+    | `destPath` | string | Destination path for new directory |
+    | `template` | string | Project template to use |
+    | `projectName` | string | Name for the new project |
+
+    **Available Templates:**
+    | Template | Description |
+    |----------|-------------|
+    | `node-typescript` | Node.js with TypeScript |
+    | `node-javascript` | Node.js with JavaScript |
+    | `python` | Python project |
+    | `rust` | Rust project |
+    | `go` | Go project |
+    | `empty` | Empty directory |
+
+    **Best for:**
+    - Prototypes and experiments
+    - Isolated test environments
+    - Temporary workspaces
+  </Tab>
+</Tabs>
+
+## Sandbox Configuration
+
+Sandboxes provide isolation and resource control for agent execution:
+
+```yaml
+sandbox:
+  provider: docker
+  image: node:20-slim
+  resources:
+    cpu: 4
+    memory: "8Gi"
+    disk: "20Gi"
+    timeout: "2h"
+  network: bridge
+  mounts:
+    - source: ~/.npm
+      target: /root/.npm
+      readonly: false
+  environment:
+    NODE_ENV: development
+    LOG_LEVEL: debug
+  workdir: /workspace
+```
+
+### Sandbox Providers
+
+<Tabs>
+  <Tab title="Docker">
+    **Full container isolation**
+
+    The most secure option with complete process isolation:
+
+    ```yaml
+    sandbox:
+      provider: docker
+      image: node:20-alpine
+      resources:
+        cpu: 2
+        memory: "4Gi"
+    ```
+
+    **Capabilities:**
+    - Full filesystem isolation
+    - Network namespace isolation
+    - Resource limit enforcement
+    - Custom Docker images
+
+    <Tip>
+      Use slim/alpine images for faster startup and smaller footprint.
+    </Tip>
+  </Tab>
+
+  <Tab title="Subprocess">
+    **Lightweight process isolation**
+
+    Faster startup with basic process separation:
+
+    ```yaml
+    sandbox:
+      provider: subprocess
+      resources:
+        timeout: "1h"
+    ```
+
+    **Capabilities:**
+    - Fast startup (no container overhead)
+    - Basic resource limits
+    - Shared filesystem access
+    - Host network access
+
+    <Warning>
+      Subprocess provides less isolation than Docker. Use for trusted workloads only.
+    </Warning>
+  </Tab>
+
+  <Tab title="None">
+    **No sandbox (direct execution)**
+
+    Run without any sandbox isolation:
+
+    ```yaml
+    sandbox:
+      provider: none
+    ```
+
+    **Use when:**
+    - Testing and development
+    - Fully trusted environments
+    - Performance-critical scenarios
+
+    <Warning>
+      Running without a sandbox gives the agent full system access. Use with extreme caution.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### Resource Specification
+
+Control compute resources allocated to the sandbox:
+
+```yaml
+resources:
+  cpu: 4          # CPU cores (0.1 to 64)
+  memory: "8Gi"   # Memory (e.g., "512Mi", "4Gi")
+  disk: "20Gi"    # Disk space (e.g., "10Gi")
+  timeout: "2h"   # Execution timeout (e.g., "30m", "1h", "2h")
+```
+
+**Format Reference:**
+| Resource | Format | Examples |
+|----------|--------|----------|
+| `cpu` | number | `0.5`, `2`, `4` |
+| `memory` | string | `"512Mi"`, `"4Gi"` |
+| `disk` | string | `"1Gi"`, `"20Gi"` |
+| `timeout` | string | `"30m"`, `"1h"`, `"24h"` |
+
+### Network Modes
+
+Control sandbox network access:
+
+```yaml
+network: bridge  # or 'none' or 'host'
+```
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `none` | No network access | Security-sensitive tasks |
+| `bridge` | Isolated network with internet | Most development tasks |
+| `host` | Full host network access | Integration testing |
+
+### Volume Mounts
+
+Share directories between host and sandbox:
+
+```yaml
+mounts:
+  # Cache directories for faster builds
+  - source: ~/.npm
+    target: /root/.npm
+    readonly: false
+
+  # Shared credentials (read-only)
+  - source: ~/.aws
+    target: /root/.aws
+    readonly: true
+
+  # Project dependencies
+  - source: ./node_modules
+    target: /workspace/node_modules
+    readonly: false
+```
+
+### Environment Variables
+
+Pass environment variables to the sandbox:
+
+```yaml
+environment:
+  NODE_ENV: development
+  LOG_LEVEL: debug
+  DATABASE_URL: ${DATABASE_URL}  # From host environment
+  API_KEY: ${API_KEY}
+```
+
+<Warning>
+  Be careful with sensitive environment variables. Consider using secrets management instead of embedding them in TaskSpecs.
+</Warning>
+
+## Complete Examples
+
+### Minimal Execution
+
+```yaml
+execution:
+  workspace:
+    source: local
+    path: /path/to/project
+  agent:
+    driver: claude-code-subscription
+```
+
+### GitHub with Docker
+
+```yaml
+execution:
+  workspace:
+    source: github
+    owner: mycompany
+    repo: backend-api
+    ref: develop
+
+  sandbox:
+    provider: docker
+    image: node:20
+    resources:
+      cpu: 2
+      memory: "4Gi"
+      timeout: "1h"
+    network: bridge
+
+  agent:
+    driver: claude-code-subscription
+    maxTokens: 200000
+```
+
+### Full-Featured Execution
+
+```yaml
+execution:
+  workspace:
+    source: github
+    owner: mycompany
+    repo: monorepo
+    ref: feature/new-api
+    fork: false
+
+  sandbox:
+    provider: docker
+    image: custom-dev:latest
+    resources:
+      cpu: 4
+      memory: "8Gi"
+      disk: "50Gi"
+      timeout: "4h"
+    network: bridge
+    mounts:
+      - source: ~/.npm
+        target: /root/.npm
+        readonly: false
+      - source: ~/.cache
+        target: /root/.cache
+        readonly: false
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      CI: "true"
+    workdir: /workspace
+
+  agent:
+    driver: claude-agent-sdk
+    model: claude-opus-4-20250514
+    maxTokens: 200000
+    temperature: 0.7
+    systemPrompt: |
+      You are working on a large monorepo.
+      Focus on the packages/ directory.
+      Run tests before committing.
+    tools:
+      - name: bash
+        enabled: true
+      - name: file_system
+        enabled: true
+    capabilities:
+      fileSystem: true
+      network: true
+      shell: true
+```
+
+## Sandbox Lifecycle
+
+<Steps>
+  <Step title="Creation">
+    AgentGate creates the sandbox based on provider configuration:
+    - Docker: Pulls image and creates container
+    - Subprocess: Prepares process environment
+  </Step>
+
+  <Step title="Workspace Setup">
+    The workspace is cloned/mounted into the sandbox:
+    - Git operations (clone, checkout)
+    - Volume mounts applied
+    - Environment variables set
+  </Step>
+
+  <Step title="Agent Execution">
+    The agent runs within the sandbox:
+    - Resource limits enforced
+    - Network policies applied
+    - Timeout monitoring active
+  </Step>
+
+  <Step title="Result Collection">
+    Output is collected from the sandbox:
+    - Stdout/stderr captured
+    - Modified files tracked
+    - Resource usage recorded
+  </Step>
+
+  <Step title="Cleanup">
+    Sandbox is destroyed after execution:
+    - Container removed (Docker)
+    - Process terminated (subprocess)
+    - Temporary files cleaned
+  </Step>
+</Steps>
+
+## Sandbox Registry
+
+AgentGate tracks all active sandboxes for cleanup and monitoring:
+
+```typescript
+interface SandboxInfo {
+  provider: string;           // 'docker' | 'subprocess'
+  containerId?: string;       // Docker container ID
+  resourceUsage?: {
+    cpuPercent: number;
+    memoryMB: number;
+  };
+  durationMs: number;
+}
+```
+
+### Orphan Detection
+
+AgentGate automatically detects and cleans up orphaned sandboxes:
+
+- Containers from crashed runs
+- Stale subprocess trees
+- Abandoned volume mounts
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose the Right Workspace Type">
+    - **local**: Fast iteration on existing code
+    - **github**: Full CI/CD integration
+    - **git**: Non-GitHub repositories
+    - **fresh**: Clean slate experiments
+  </Step>
+
+  <Step title="Size Resources Appropriately">
+    | Task Type | CPU | Memory | Timeout |
+    |-----------|-----|--------|---------|
+    | Simple fix | 1-2 | 2Gi | 30m |
+    | Feature | 2-4 | 4Gi | 1-2h |
+    | Large build | 4-8 | 8Gi | 2-4h |
+    | Monorepo | 4-8 | 16Gi | 4h+ |
+  </Step>
+
+  <Step title="Use Docker for Isolation">
+    Always use Docker sandbox for:
+    - Untrusted code
+    - Production environments
+    - Multi-tenant scenarios
+  </Step>
+
+  <Step title="Optimize with Mounts">
+    Mount cache directories to speed up builds:
+    ```yaml
+    mounts:
+      - source: ~/.npm
+        target: /root/.npm
+      - source: ~/.cache/pip
+        target: /root/.cache/pip
+    ```
+  </Step>
+
+  <Step title="Limit Network Access">
+    Use `network: none` when possible:
+    - Prevents data exfiltration
+    - Ensures offline builds work
+    - Reduces attack surface
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Docker image pull fails">
+    Check image availability:
+    ```bash
+    docker pull node:20-slim
+    ```
+
+    Ensure Docker daemon is running:
+    ```bash
+    docker info
+    ```
+  </Accordion>
+
+  <Accordion title="Out of memory errors">
+    Increase memory limit:
+    ```yaml
+    resources:
+      memory: "8Gi"  # Increase from default
+    ```
+
+    Or use a smaller base image:
+    ```yaml
+    image: node:20-alpine  # Smaller than node:20
+    ```
+  </Accordion>
+
+  <Accordion title="Git clone authentication fails">
+    For GitHub workspaces, ensure `GITHUB_TOKEN` is set.
+
+    For git workspaces, configure credentials:
+    ```yaml
+    credentials:
+      type: token
+      token: ${GIT_TOKEN}
+    ```
+  </Accordion>
+
+  <Accordion title="Sandbox timeout">
+    Increase timeout in resources:
+    ```yaml
+    resources:
+      timeout: "4h"  # Increase from default 1h
+    ```
+
+    Also check convergence limits:
+    ```yaml
+    convergence:
+      limits:
+        maxWallClock: "4h"
+    ```
+  </Accordion>
+
+  <Accordion title="Permission denied on mount">
+    Check host directory permissions:
+    ```bash
+    ls -la ~/.npm
+    chmod 755 ~/.npm
+    ```
+
+    Or use readonly mount:
+    ```yaml
+    mounts:
+      - source: ~/.npm
+        target: /root/.npm
+        readonly: true
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TaskSpec" icon="file-code" href="/concepts/task-spec">
+    Configure execution within TaskSpec
+  </Card>
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    Agent driver configuration
+  </Card>
+  <Card title="Delivery" icon="truck" href="/concepts/delivery">
+    Ship results after execution
+  </Card>
+  <Card title="Gates" icon="shield-check" href="/concepts/gates">
+    Verification during execution
+  </Card>
+</CardGroup>

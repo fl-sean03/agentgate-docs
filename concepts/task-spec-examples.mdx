@@ -1,0 +1,821 @@
+---
+title: TaskSpec Examples
+description: "Ready-to-use TaskSpec templates for common coding workflows"
+---
+
+# TaskSpec Examples
+
+This page provides ready-to-use TaskSpec examples for common workflows. Copy and adapt these to your needs.
+
+## Quick Start Examples
+
+### Bug Fix Workflow
+
+For fixing bugs with fast iteration:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: fix-bug
+  labels:
+    type: bugfix
+
+spec:
+  goal:
+    prompt: |
+      Fix the null pointer exception in UserService.authenticate().
+
+      Steps:
+      1. Add null check before accessing user object
+      2. Return appropriate error message for missing users
+      3. Add unit test for the null case
+
+    context: |
+      Error trace shows NPE at UserService.java:45
+      Related to recent changes in commit abc123
+
+    desiredState:
+      allGatesPassed: true
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 3
+    gates:
+      - name: quick-checks
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 5
+      maxWallClock: "30m"
+      maxCost: "$10"
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: backend
+      ref: bugfix/user-npe
+    sandbox:
+      provider: docker
+      resources:
+        cpu: 2
+        memory: "4Gi"
+        timeout: "30m"
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+      branchPrefix: "fix/"
+      commitPrefix: "[BugFix]"
+    pr:
+      create: true
+      draft: false
+      labels:
+        - bugfix
+        - urgent
+```
+
+### Feature Implementation
+
+For implementing new features with comprehensive testing:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: implement-feature
+  labels:
+    type: feature
+    priority: high
+
+spec:
+  goal:
+    prompt: |
+      Implement user profile photo upload feature.
+
+      Requirements:
+      - POST /api/users/:id/photo - upload photo
+      - GET /api/users/:id/photo - get photo URL
+      - DELETE /api/users/:id/photo - remove photo
+      - Support JPEG, PNG, WebP formats
+      - Max file size: 5MB
+      - Store in S3-compatible storage
+
+    context: |
+      Use existing StorageService for S3 operations.
+      Follow patterns in src/controllers/DocumentController.ts
+      Auth middleware already validates user ownership.
+
+    desiredState:
+      allGatesPassed: true
+
+  convergence:
+    strategy: hybrid
+    config:
+      baseIterations: 5
+      bonusIterations: 3
+      progressThreshold: 0.8
+    gates:
+      - name: contracts
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+      - name: tests
+        check:
+          type: verification-levels
+          levels: [L1, L2]
+        onFailure:
+          action: iterate
+          maxAttempts: 10
+      - name: ci
+        check:
+          type: github-actions
+          workflows: [ci.yml]
+          timeout: "15m"
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 20
+      maxWallClock: "2h"
+      maxCost: "$50"
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: api-server
+      ref: develop
+    sandbox:
+      provider: docker
+      image: node:20
+      resources:
+        cpu: 4
+        memory: "8Gi"
+        timeout: "2h"
+      network: bridge
+    agent:
+      driver: claude-code-subscription
+      maxTokens: 200000
+
+  delivery:
+    git:
+      mode: github-pr
+      branchPrefix: "feature/"
+    pr:
+      create: true
+      title: "feat(users): add profile photo upload"
+      labels:
+        - feature
+        - needs-review
+      reviewers:
+        - backend-team
+    notifications:
+      onSuccess:
+        - type: slack
+          channel: "#dev-updates"
+```
+
+### Refactoring Workflow
+
+For code refactoring with safety gates:
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: refactor-module
+  labels:
+    type: refactor
+
+spec:
+  goal:
+    prompt: |
+      Refactor the OrderService to use the repository pattern.
+
+      Changes needed:
+      1. Create OrderRepository interface
+      2. Implement PostgresOrderRepository
+      3. Update OrderService to use repository
+      4. Maintain all existing functionality
+      5. Ensure all tests pass
+
+    context: |
+      This is a critical service handling payments.
+      Zero tolerance for regressions.
+      Follow patterns in src/repositories/UserRepository.ts
+
+    desiredState:
+      allGatesPassed: true
+
+  convergence:
+    strategy: ralph
+    config:
+      convergenceThreshold: 0.03
+      windowSize: 3
+      minIterations: 3
+    gates:
+      - name: type-check
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+      - name: all-tests
+        check:
+          type: verification-levels
+          levels: [L1, L2, L3]
+        onFailure:
+          action: iterate
+          maxAttempts: 15
+          feedback: auto
+      - name: ci-full
+        check:
+          type: github-actions
+          workflows: [ci.yml, integration.yml]
+          timeout: "30m"
+        onFailure:
+          action: stop
+    limits:
+      maxIterations: 30
+      maxWallClock: "3h"
+      maxCost: "$75"
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: order-service
+      ref: main
+    sandbox:
+      provider: docker
+      resources:
+        cpu: 4
+        memory: "8Gi"
+    agent:
+      driver: claude-agent-sdk
+      model: claude-opus-4-20250514
+
+  delivery:
+    git:
+      mode: github-pr
+      branchPrefix: "refactor/"
+    pr:
+      create: true
+      draft: true
+      title: "refactor(orders): implement repository pattern"
+      labels:
+        - refactor
+        - needs-careful-review
+      reviewers:
+        - senior-engineers
+```
+
+## Language-Specific Examples
+
+### TypeScript/Node.js Project
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: ts-feature
+
+spec:
+  goal:
+    prompt: "Add rate limiting middleware to Express API"
+
+  convergence:
+    strategy: hybrid
+    gates:
+      - name: typescript
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+      - name: jest-tests
+        check:
+          type: verification-levels
+          levels: [L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 10
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: ts-api
+    sandbox:
+      provider: docker
+      image: node:20-alpine
+      resources:
+        memory: "4Gi"
+      environment:
+        NODE_ENV: test
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+```
+
+### Python Project
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: python-feature
+
+spec:
+  goal:
+    prompt: "Add data validation to FastAPI endpoints using Pydantic"
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 5
+    gates:
+      - name: python-checks
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 10
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: python-api
+    sandbox:
+      provider: docker
+      image: python:3.11-slim
+      resources:
+        memory: "4Gi"
+      environment:
+        PYTHONPATH: /workspace
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+```
+
+### Go Project
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: go-feature
+
+spec:
+  goal:
+    prompt: "Implement graceful shutdown for the HTTP server"
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 3
+    gates:
+      - name: go-build
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+      - name: go-test
+        check:
+          type: verification-levels
+          levels: [L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 8
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: go-service
+    sandbox:
+      provider: docker
+      image: golang:1.21-alpine
+      resources:
+        memory: "2Gi"
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+```
+
+## CI/CD Integration Examples
+
+### CI-Focused (Wait for Actions)
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: ci-critical
+
+spec:
+  goal:
+    prompt: "Fix failing CI tests in auth module"
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 3
+    gates:
+      - name: local-tests
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+      - name: github-ci
+        check:
+          type: github-actions
+          workflows: [test.yml, lint.yml, build.yml]
+          timeout: "20m"
+          pollInterval: "30s"
+        onFailure:
+          action: iterate
+          maxAttempts: 5
+    limits:
+      maxIterations: 15
+      maxWallClock: "2h"
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: myapp
+      ref: fix-ci
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+      autoPush: true
+    pr:
+      create: true
+      labels:
+        - ci-fix
+```
+
+### Custom Verification Commands
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: custom-verification
+
+spec:
+  goal:
+    prompt: "Update database migration scripts"
+
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 3
+    gates:
+      - name: migration-check
+        check:
+          type: custom
+          command: "npm run db:migrate:dry-run"
+          successPattern: "Migration would succeed"
+          failPattern: "Error|Failed"
+          timeout: "5m"
+        onFailure:
+          action: iterate
+      - name: schema-validate
+        check:
+          type: custom
+          command: "npm run db:validate-schema"
+          timeout: "2m"
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 5
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: backend
+    sandbox:
+      provider: docker
+      network: bridge
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+```
+
+## Advanced Patterns
+
+### Multi-Stage Verification
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: multi-stage
+
+spec:
+  goal:
+    prompt: "Implement payment processing integration"
+
+  convergence:
+    strategy: adaptive
+    config:
+      initialBudget: 5
+      maxBudget: 20
+      growthFactor: 1.5
+      successThreshold: 0.9
+    gates:
+      # Stage 1: Fast feedback
+      - name: quick-checks
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+        condition:
+          when: always
+
+      # Stage 2: Unit tests
+      - name: unit-tests
+        check:
+          type: verification-levels
+          levels: [L1]
+        onFailure:
+          action: iterate
+          maxAttempts: 10
+        condition:
+          when: previousPassed
+
+      # Stage 3: Integration tests
+      - name: integration
+        check:
+          type: verification-levels
+          levels: [L2]
+        onFailure:
+          action: iterate
+          maxAttempts: 5
+        condition:
+          when: previousPassed
+
+      # Stage 4: CI validation
+      - name: ci
+        check:
+          type: github-actions
+          workflows: [ci.yml]
+        onFailure:
+          action: stop
+        condition:
+          skipIf: dryRun
+    limits:
+      maxIterations: 30
+      maxWallClock: "4h"
+      maxCost: "$100"
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: payments
+    agent:
+      driver: claude-agent-sdk
+
+  delivery:
+    git:
+      mode: github-pr
+```
+
+### Human Approval Gate
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: with-approval
+
+spec:
+  goal:
+    prompt: "Refactor database connection pooling"
+
+  convergence:
+    strategy: hybrid
+    gates:
+      - name: automated-checks
+        check:
+          type: verification-levels
+          levels: [L0, L1, L2]
+        onFailure:
+          action: iterate
+      - name: human-review
+        check:
+          type: approval
+          approvers:
+            - "@database-team"
+          timeout: "24h"
+          message: |
+            Please review the connection pooling changes.
+            Key files: src/db/pool.ts, src/config/database.ts
+        onFailure:
+          action: stop
+    limits:
+      maxIterations: 10
+
+  execution:
+    workspace:
+      source: github
+      owner: myorg
+      repo: backend
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+    pr:
+      create: true
+      draft: true
+```
+
+## Profile Templates
+
+These profiles can be saved and reused:
+
+### Default TypeScript Profile
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: typescript-default
+
+spec:
+  convergence:
+    strategy: hybrid
+    config:
+      baseIterations: 3
+      bonusIterations: 2
+    gates:
+      - name: ts-checks
+        check:
+          type: verification-levels
+          levels: [L0, L1]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 10
+      maxWallClock: "1h"
+
+  execution:
+    sandbox:
+      provider: docker
+      image: node:20
+      resources:
+        cpu: 2
+        memory: "4Gi"
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: github-pr
+    pr:
+      create: true
+      labels:
+        - auto-generated
+```
+
+### Rapid Iteration Profile
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: rapid-iteration
+
+spec:
+  convergence:
+    strategy: fixed
+    config:
+      iterations: 1
+    gates:
+      - name: minimal
+        check:
+          type: verification-levels
+          levels: [L0]
+        onFailure:
+          action: iterate
+    limits:
+      maxIterations: 3
+      maxWallClock: "15m"
+      maxCost: "$5"
+
+  execution:
+    sandbox:
+      resources:
+        timeout: "10m"
+    agent:
+      driver: claude-code-subscription
+
+  delivery:
+    git:
+      mode: local
+```
+
+### CI-Strict Profile
+
+```yaml
+apiVersion: agentgate.io/v1
+kind: TaskSpec
+metadata:
+  name: ci-strict
+
+spec:
+  convergence:
+    strategy: ralph
+    config:
+      convergenceThreshold: 0.05
+      minIterations: 3
+    gates:
+      - name: full-verification
+        check:
+          type: verification-levels
+          levels: [L0, L1, L2, L3]
+        onFailure:
+          action: iterate
+      - name: ci-required
+        check:
+          type: github-actions
+          workflows: [ci.yml]
+          required: true
+        onFailure:
+          action: stop
+    limits:
+      maxIterations: 25
+      maxWallClock: "3h"
+
+  execution:
+    sandbox:
+      resources:
+        cpu: 4
+        memory: "8Gi"
+    agent:
+      driver: claude-agent-sdk
+      model: claude-opus-4-20250514
+
+  delivery:
+    git:
+      mode: github-pr
+    pr:
+      draft: true
+      reviewers:
+        - senior-devs
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TaskSpec Guide" icon="file-code" href="/concepts/task-spec">
+    Full TaskSpec documentation and field reference
+  </Card>
+  <Card title="Convergence" icon="rotate" href="/concepts/convergence">
+    Learn about convergence strategies
+  </Card>
+  <Card title="Gates" icon="shield-check" href="/concepts/gates">
+    Configure verification gates
+  </Card>
+  <Card title="Profiles API" icon="bookmark" href="/api-reference/profiles/list">
+    Save and reuse TaskSpecs as profiles
+  </Card>
+</CardGroup>

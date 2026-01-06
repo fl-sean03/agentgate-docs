@@ -1,0 +1,134 @@
+---
+title: "Cancel Work Order"
+api: "DELETE /api/v1/work-orders/{id}"
+description: "Cancel a queued or running work order"
+---
+
+# Cancel Work Order
+
+Cancels a work order that is currently queued or running. This endpoint supports graceful cancellation of active work orders.
+
+<Warning>
+  Cancellation is irreversible. A canceled work order cannot be resumed.
+</Warning>
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The work order ID to cancel (e.g., `wo_abc123`)
+</ParamField>
+
+```bash
+curl -X DELETE https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Cancellation result
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string" required>
+      Work order ID
+    </ResponseField>
+
+    <ResponseField name="status" type="string" required>
+      New status (always `canceled`)
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      Confirmation message
+    </ResponseField>
+
+    <ResponseField name="wasRunning" type="boolean" required>
+      Whether the work order was actively running when canceled
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+### Successful Cancellation
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wo_abc123",
+    "status": "canceled",
+    "message": "Work order canceled successfully",
+    "wasRunning": true
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Queued Work Order Cancellation
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wo_def456",
+    "status": "canceled",
+    "message": "Work order canceled successfully",
+    "wasRunning": false
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Work Order Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Work order not found: wo_invalid"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Already Completed
+
+Returns 409 Conflict if the work order is already in a terminal state.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Cannot cancel work order in status 'succeeded'"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Behavior
+
+| Original Status | Behavior |
+|-----------------|----------|
+| `queued` | Immediately marked as canceled |
+| `running` | Graceful shutdown initiated, then marked canceled |
+| `succeeded` | Returns 409 Conflict |
+| `failed` | Returns 409 Conflict |
+| `canceled` | Returns 409 Conflict |
+
+<Tip>
+  For running work orders, the agent process is given time to clean up before the work order is marked as canceled. Use the [Force Kill](/api-reference/work-orders/kill) endpoint if you need immediate termination.
+</Tip>
+
+## Related
+
+- [Force Kill Work Order](/api-reference/work-orders/kill) - Immediately terminate a work order
+- [Get Work Order](/api-reference/work-orders/get) - Check work order status
+- [List Work Orders](/api-reference/work-orders/list) - List all work orders

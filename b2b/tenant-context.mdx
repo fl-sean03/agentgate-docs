@@ -119,7 +119,7 @@ const workOrder = await client.workOrders.create({
 ```
 
 ```bash cURL
-curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+curl -X POST https://agentgate.mynewapi.com/v1/work-orders \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -184,7 +184,7 @@ Tenant context enables usage tracking and billing:
 ### Query Usage by Tenant
 
 ```bash
-curl "https://api.agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp" \
+curl "https://agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

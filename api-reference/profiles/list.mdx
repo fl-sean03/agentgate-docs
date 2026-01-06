@@ -1,0 +1,101 @@
+---
+title: "List Profiles"
+api: "GET /api/v1/profiles"
+description: "List all available harness profiles"
+---
+
+# List Profiles
+
+Returns a list of all available harness profiles, including built-in and custom profiles.
+
+## Request
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/profiles \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Profile list data
+
+  <Expandable title="properties">
+    <ResponseField name="items" type="array" required>
+      Array of profile summaries
+      <Expandable title="properties">
+        <ResponseField name="name" type="string">
+          Profile name
+        </ResponseField>
+        <ResponseField name="description" type="string">
+          Profile description
+        </ResponseField>
+        <ResponseField name="extends" type="string">
+          Parent profile this extends (if any)
+        </ResponseField>
+        <ResponseField name="isBuiltIn" type="boolean">
+          Whether this is a built-in profile
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="total" type="number" required>
+      Total number of profiles
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "name": "default",
+        "description": "Default profile with balanced settings",
+        "extends": null,
+        "isBuiltIn": true
+      },
+      {
+        "name": "ci-focused",
+        "description": "Optimized for CI/CD pipelines",
+        "extends": "default",
+        "isBuiltIn": true
+      },
+      {
+        "name": "rapid-iteration",
+        "description": "Fast iteration for development",
+        "extends": "default",
+        "isBuiltIn": true
+      },
+      {
+        "name": "my-custom-profile",
+        "description": "Custom profile for production",
+        "extends": "ci-focused",
+        "isBuiltIn": false
+      }
+    ],
+    "total": 4
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Built-in Profiles
+
+| Profile | Description |
+|---------|-------------|
+| `default` | Balanced settings for general use |
+| `ci-focused` | Optimized for CI/CD with GitHub Actions integration |
+| `rapid-iteration` | Fast feedback loops for development |
+| `ralph-style` | Ralph-style convergence with loop detection |
+
+<Note>
+  Built-in profiles cannot be modified or deleted.
+</Note>

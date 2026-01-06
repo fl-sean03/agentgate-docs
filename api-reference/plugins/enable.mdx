@@ -1,0 +1,46 @@
+---
+title: "Enable Plugin"
+api: "POST /api/v1/verification/plugins/{id}/enable"
+description: "Enable a verification plugin"
+---
+
+# Enable Plugin
+
+Enables a disabled verification plugin.
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The plugin ID to enable
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/verification/plugins/custom:security-scan/enable \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": true
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Plugin Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Plugin 'unknown-plugin' not found"
+  }
+}
+```

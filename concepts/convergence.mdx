@@ -1,0 +1,411 @@
+---
+title: Convergence
+description: "Understanding convergence strategies - how AgentGate determines when a task is complete"
+---
+
+# Convergence
+
+Convergence is the process by which AgentGate determines when an agent has successfully completed a task. Instead of simply running a fixed number of iterations, convergence strategies intelligently decide when to continue iterating, when to stop, and how to interpret progress.
+
+## What Is Convergence
+
+Traditional automation runs for a predetermined number of attempts. Convergence goes further by:
+
+- **Detecting completion**: Recognizing when the agent has achieved the desired state
+- **Measuring progress**: Tracking improvements across iterations
+- **Preventing loops**: Identifying when the agent is stuck in repetitive behavior
+- **Optimizing cost**: Stopping when further iterations are unlikely to help
+
+## Convergence Strategies
+
+AgentGate supports five convergence strategies:
+
+<Tabs>
+  <Tab title="Fixed">
+    **Run exactly N iterations**
+
+    The simplest strategy. Runs a predetermined number of iterations regardless of outcome.
+
+    ```yaml
+    convergence:
+      strategy: fixed
+      config:
+        iterations: 5
+    ```
+
+    **Best for:**
+    - Simple tasks with predictable completion
+    - Cost-controlled environments
+    - Testing and debugging
+
+    **Limitations:**
+    - May waste iterations on already-completed tasks
+    - May stop before completion on complex tasks
+  </Tab>
+
+  <Tab title="Hybrid">
+    **Base iterations + bonus if progressing**
+
+    Runs a base number of iterations, then continues with bonus iterations if the agent is making progress toward the goal.
+
+    ```yaml
+    convergence:
+      strategy: hybrid
+      config:
+        baseIterations: 3       # Guaranteed iterations
+        bonusIterations: 5      # Extra iterations if progressing
+        progressThreshold: 0.7  # Progress score needed (0-1)
+    ```
+
+    **Best for:**
+    - Most general-purpose tasks
+    - Balancing cost with completion
+    - Tasks with variable complexity
+
+    **How it works:**
+    1. Run `baseIterations` attempts
+    2. Calculate progress score (0-1) based on gate results
+    3. If score >= `progressThreshold`, grant bonus iterations
+    4. Continue until all gates pass or limits reached
+  </Tab>
+
+  <Tab title="Ralph">
+    **Continue until agent signals done or loop detected**
+
+    Named after the "Ralph" algorithm, this strategy continues until the agent indicates completion or until similarity detection identifies a loop.
+
+    ```yaml
+    convergence:
+      strategy: ralph
+      config:
+        convergenceThreshold: 0.05  # Similarity threshold (lower = more sensitive)
+        windowSize: 3               # Recent outputs to compare
+        minIterations: 2            # Minimum before allowing termination
+        promptHotReload: true       # Allow prompt updates mid-run
+    ```
+
+    **Best for:**
+    - Complex, multi-step tasks
+    - Open-ended development work
+    - Tasks requiring agent judgment
+
+    **How it works:**
+    1. Track similarity between recent agent outputs
+    2. If outputs are too similar (below threshold), detect loop
+    3. If agent signals completion, verify with gates
+    4. Stop on loop detection, gate passage, or limits
+  </Tab>
+
+  <Tab title="Adaptive">
+    **ML-based strategy (future)**
+
+    Uses machine learning to predict optimal iteration counts based on historical data.
+
+    ```yaml
+    convergence:
+      strategy: adaptive
+      config:
+        modelId: "cost-optimized-v1"
+    ```
+
+    <Warning>
+      Adaptive strategy is planned for future releases and not yet available.
+    </Warning>
+  </Tab>
+
+  <Tab title="Manual">
+    **Human decides each iteration**
+
+    Pauses after each iteration for human review and decision.
+
+    ```yaml
+    convergence:
+      strategy: manual
+    ```
+
+    **Best for:**
+    - High-stakes changes
+    - Learning agent behavior
+    - Compliance requirements
+  </Tab>
+</Tabs>
+
+## Configuration Options
+
+### Strategy-Specific Options
+
+| Strategy | Option | Type | Default | Description |
+|----------|--------|------|---------|-------------|
+| fixed | `iterations` | number | 3 | Exact iteration count |
+| hybrid | `baseIterations` | number | 3 | Guaranteed iterations |
+| hybrid | `bonusIterations` | number | 2 | Extra iterations if progressing |
+| hybrid | `progressThreshold` | number | 0.7 | Progress score needed (0-1) |
+| ralph | `convergenceThreshold` | number | 0.05 | Similarity threshold |
+| ralph | `windowSize` | number | 3 | Outputs to compare |
+| ralph | `minIterations` | number | 1 | Minimum before termination |
+| ralph | `promptHotReload` | boolean | false | Allow prompt updates |
+
+### Resource Limits
+
+Every convergence configuration should include limits:
+
+```yaml
+convergence:
+  strategy: hybrid
+  limits:
+    maxIterations: 10        # Hard cap on iterations
+    maxWallClock: "2h"       # Maximum elapsed time
+    maxCost: "$50"           # Maximum cost budget
+    maxTokens: 1000000       # Total token budget
+```
+
+<Warning>
+  Always set `maxIterations` to prevent runaway costs. The default of 100 may be too high for your use case.
+</Warning>
+
+## Convergence State
+
+During execution, AgentGate tracks convergence state:
+
+```typescript
+interface ConvergenceState {
+  iteration: number;           // Current iteration (1-based)
+  elapsed: number;             // Elapsed time in milliseconds
+  gateResults: GateResult[];   // Results from current iteration
+  history: IterationHistory[]; // Previous iteration data
+  trend: 'improving' | 'stagnant' | 'regressing';
+}
+```
+
+You can query this state via the API:
+
+```bash
+curl https://agentgate.mynewapi.com/v1/runs/run_123/strategy-state \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Convergence Decisions
+
+Each iteration ends with a convergence decision:
+
+```json
+{
+  "continue": true,
+  "reason": "Progress detected: 3/5 gates now passing (was 1/5)",
+  "confidence": 0.85,
+  "metadata": {
+    "gatesPassing": 3,
+    "gatesTotal": 5,
+    "progressScore": 0.6
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `continue` | Whether to run another iteration |
+| `reason` | Human-readable explanation |
+| `confidence` | How confident the strategy is (0-1) |
+| `metadata` | Strategy-specific details |
+
+## Progress Metrics
+
+AgentGate calculates progress metrics across iterations:
+
+```json
+{
+  "overall": 0.75,
+  "byGate": {
+    "lint": { "currentLevel": 1.0, "previousLevel": 0.8, "trend": "improving" },
+    "tests": { "currentLevel": 0.5, "previousLevel": 0.3, "trend": "improving" },
+    "ci": { "currentLevel": 0.0, "previousLevel": 0.0, "trend": "stagnant" }
+  },
+  "trend": "improving",
+  "velocity": 0.15
+}
+```
+
+### Understanding Trends
+
+| Trend | Meaning | Action |
+|-------|---------|--------|
+| `improving` | Gates passing at increasing rate | Continue iterations |
+| `stagnant` | No change in gate passage | Consider stopping |
+| `regressing` | Gates that passed are now failing | Investigate agent behavior |
+
+## Choosing a Strategy
+
+<AccordionGroup>
+  <Accordion title="When to use Fixed">
+    **Use fixed when:**
+    - You have a well-understood task
+    - Cost predictability is important
+    - You're testing or debugging
+    - Tasks typically complete in 1-3 iterations
+
+    ```yaml
+    convergence:
+      strategy: fixed
+      config:
+        iterations: 3
+      limits:
+        maxIterations: 5
+    ```
+  </Accordion>
+
+  <Accordion title="When to use Hybrid">
+    **Use hybrid when:**
+    - Tasks have variable complexity
+    - You want to balance cost and completion
+    - Progress is measurable through gates
+    - Most common choice for production
+
+    ```yaml
+    convergence:
+      strategy: hybrid
+      config:
+        baseIterations: 3
+        bonusIterations: 5
+        progressThreshold: 0.6
+      limits:
+        maxIterations: 15
+        maxWallClock: "1h"
+    ```
+  </Accordion>
+
+  <Accordion title="When to use Ralph">
+    **Use ralph when:**
+    - Tasks are complex or open-ended
+    - Agent needs flexibility to explore
+    - Loop detection is important
+    - You trust the agent's judgment
+
+    ```yaml
+    convergence:
+      strategy: ralph
+      config:
+        convergenceThreshold: 0.05
+        windowSize: 4
+        minIterations: 2
+      limits:
+        maxIterations: 50
+        maxWallClock: "4h"
+        maxCost: "$100"
+    ```
+  </Accordion>
+
+  <Accordion title="When to use Manual">
+    **Use manual when:**
+    - Changes require human approval
+    - Learning how the agent behaves
+    - Compliance requires oversight
+    - High-risk or sensitive code
+
+    ```yaml
+    convergence:
+      strategy: manual
+      limits:
+        maxIterations: 20
+        maxWallClock: "24h"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Convergence with Gates
+
+Convergence strategies work with [gates](/concepts/gates) to determine completion:
+
+```yaml
+convergence:
+  strategy: hybrid
+  config:
+    baseIterations: 3
+    progressThreshold: 0.7
+
+  gates:
+    - name: lint
+      check:
+        type: verification-levels
+        levels: [L0, L1]
+      onFailure:
+        action: iterate
+
+    - name: tests
+      check:
+        type: verification-levels
+        levels: [L2]
+      onFailure:
+        action: iterate
+
+    - name: ci
+      check:
+        type: github-actions
+      onFailure:
+        action: stop  # Don't retry CI failures
+```
+
+### Gate Interaction
+
+1. **All gates pass** &rarr; Task complete, stop iterating
+2. **Some gates fail with `iterate`** &rarr; Generate feedback, continue
+3. **Any gate fails with `stop`** &rarr; Task failed, stop immediately
+4. **Limits reached** &rarr; Task failed, stop with partial results
+
+## Best Practices
+
+<Steps>
+  <Step title="Start with Hybrid">
+    For most tasks, `hybrid` provides the best balance. Start with conservative settings and adjust based on results.
+
+    ```yaml
+    strategy: hybrid
+    config:
+      baseIterations: 3
+      bonusIterations: 3
+      progressThreshold: 0.7
+    ```
+  </Step>
+
+  <Step title="Set Reasonable Limits">
+    Always set limits to control costs. Consider your task complexity:
+
+    | Task Type | Recommended Max |
+    |-----------|-----------------|
+    | Simple fix | 5 iterations |
+    | Feature | 10-15 iterations |
+    | Complex feature | 20-30 iterations |
+    | Major refactor | 50+ iterations |
+  </Step>
+
+  <Step title="Monitor Progress">
+    Use the strategy state API to monitor convergence:
+
+    ```bash
+    watch -n 10 'curl -s .../runs/run_123/strategy-state | jq .trend'
+    ```
+  </Step>
+
+  <Step title="Adjust Based on Results">
+    After completing several tasks, review convergence patterns:
+    - Tasks completing too early? Lower `progressThreshold`
+    - Wasting iterations? Raise `progressThreshold`
+    - Loop detection triggering? Adjust `convergenceThreshold`
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TaskSpec" icon="file-code" href="/concepts/task-spec">
+    Configure convergence within TaskSpec
+  </Card>
+  <Card title="Gates" icon="shield-check" href="/concepts/gates">
+    Define verification checkpoints
+  </Card>
+  <Card title="Runs" icon="play" href="/concepts/runs">
+    Monitor iteration progress
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimize convergence settings
+  </Card>
+</CardGroup>

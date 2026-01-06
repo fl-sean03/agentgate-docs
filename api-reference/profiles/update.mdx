@@ -1,0 +1,126 @@
+---
+title: "Update Profile"
+api: "PUT /api/v1/profiles/{name}"
+description: "Update an existing profile"
+---
+
+# Update Profile
+
+Updates an existing profile with new configuration values.
+
+<Note>
+  This endpoint requires authentication. Built-in profiles cannot be modified.
+</Note>
+
+## Request
+
+<ParamField path="name" type="string" required>
+  The profile name to update
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated profile description
+</ParamField>
+
+<ParamField body="extends" type="string">
+  Updated parent profile
+</ParamField>
+
+<ParamField body="loopStrategy" type="object">
+  Updated loop strategy configuration
+</ParamField>
+
+<ParamField body="verification" type="object">
+  Updated verification configuration
+</ParamField>
+
+<ParamField body="gitOps" type="object">
+  Updated Git operations configuration
+</ParamField>
+
+<ParamField body="executionLimits" type="object">
+  Updated execution limits configuration
+</ParamField>
+
+```bash
+curl -X PUT https://agentgate.mynewapi.com/api/v1/profiles/my-custom-profile \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated description",
+    "loopStrategy": {
+      "baseIterations": 10
+    }
+  }'
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Update result
+
+  <Expandable title="properties">
+    <ResponseField name="name" type="string" required>
+      Profile name
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      Success message
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "name": "my-custom-profile",
+    "message": "Profile updated successfully"
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Cannot Modify Built-in Profile
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Cannot modify built-in profile: default"
+  }
+}
+```
+
+### Profile Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Profile not found: unknown-profile"
+  }
+}
+```
+
+### Circular Inheritance
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Profile cannot extend itself"
+  }
+}
+```

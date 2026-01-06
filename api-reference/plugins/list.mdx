@@ -1,0 +1,86 @@
+---
+title: "List Plugins"
+api: "GET /api/v1/verification/plugins"
+description: "List all registered verification plugins"
+---
+
+# List Plugins
+
+Returns a list of all registered verification plugins, including built-in and custom plugins.
+
+## Request
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/verification/plugins \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="array" required>
+  Array of plugin configurations
+
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Unique plugin identifier
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Human-readable plugin name
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Plugin description
+    </ResponseField>
+    <ResponseField name="level" type="string">
+      Verification level: `L0`, `L1`, `L2`, `L3`, or `custom`
+    </ResponseField>
+    <ResponseField name="priority" type="number">
+      Execution priority (lower runs first)
+    </ResponseField>
+    <ResponseField name="enabled" type="boolean">
+      Whether plugin is enabled
+    </ResponseField>
+    <ResponseField name="continueOnFail" type="boolean">
+      Whether to continue verification if this plugin fails
+    </ResponseField>
+    <ResponseField name="options" type="object">
+      Plugin-specific options
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "built-in:eslint",
+      "name": "ESLint",
+      "description": "JavaScript/TypeScript linting",
+      "level": "L0",
+      "priority": 10,
+      "enabled": true,
+      "continueOnFail": false,
+      "options": {}
+    },
+    {
+      "id": "custom:security-scan",
+      "name": "Security Scanner",
+      "description": "Custom security vulnerability scanner",
+      "level": "custom",
+      "priority": 100,
+      "enabled": true,
+      "continueOnFail": true,
+      "options": {
+        "severity": "high"
+      }
+    }
+  ],
+  "requestId": "req_abc123"
+}
+```

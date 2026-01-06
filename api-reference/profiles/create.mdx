@@ -1,0 +1,139 @@
+---
+title: "Create Profile"
+api: "POST /api/v1/profiles"
+description: "Create a new harness profile"
+---
+
+# Create Profile
+
+Creates a new harness profile with the specified configuration.
+
+<Note>
+  This endpoint requires authentication.
+</Note>
+
+## Request
+
+<ParamField body="name" type="string" required>
+  Unique profile name (1-128 characters, alphanumeric and hyphens)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Profile description
+</ParamField>
+
+<ParamField body="extends" type="string">
+  Parent profile to inherit from
+</ParamField>
+
+<ParamField body="loopStrategy" type="object">
+  Loop strategy configuration
+</ParamField>
+
+<ParamField body="verification" type="object">
+  Verification configuration
+</ParamField>
+
+<ParamField body="gitOps" type="object">
+  Git operations configuration
+</ParamField>
+
+<ParamField body="executionLimits" type="object">
+  Execution limits configuration
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/profiles \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-custom-profile",
+    "description": "Custom profile for production",
+    "extends": "ci-focused",
+    "loopStrategy": {
+      "type": "hybrid",
+      "baseIterations": 5,
+      "bonusIterations": 3
+    },
+    "verification": {
+      "levels": ["L0", "L1", "L2"]
+    },
+    "executionLimits": {
+      "maxIterations": 20
+    }
+  }'
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Created profile info
+
+  <Expandable title="properties">
+    <ResponseField name="name" type="string" required>
+      Profile name
+    </ResponseField>
+
+    <ResponseField name="description" type="string">
+      Profile description
+    </ResponseField>
+
+    <ResponseField name="extends" type="string">
+      Parent profile name
+    </ResponseField>
+
+    <ResponseField name="isBuiltIn" type="boolean" required>
+      Always false for created profiles
+    </ResponseField>
+
+    <ResponseField name="message" type="string" required>
+      Success message
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "name": "my-custom-profile",
+    "description": "Custom profile for production",
+    "extends": "ci-focused",
+    "isBuiltIn": false,
+    "message": "Profile created successfully"
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Error Responses
+
+### Profile Already Exists
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CONFLICT",
+    "message": "Profile already exists: my-custom-profile"
+  }
+}
+```
+
+### Parent Profile Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Parent profile not found: unknown-parent"
+  }
+}
+```

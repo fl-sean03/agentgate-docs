@@ -25,7 +25,7 @@ Webhooks notify your application when events occur in AgentGate. Instead of poll
 <CodeGroup>
 
 ```bash cURL
-curl -X POST https://api.agentgate.mynewapi.com/v1/webhooks \
+curl -X POST https://agentgate.mynewapi.com/v1/webhooks \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -364,7 +364,7 @@ After 5 failed attempts, the delivery is abandoned.
 Send a test event to verify configuration:
 
 ```bash
-curl -X POST https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123/test \
+curl -X POST https://agentgate.mynewapi.com/v1/webhooks/wh_abc123/test \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -382,14 +382,14 @@ Use tunneling for local testing:
 ### List Webhooks
 
 ```bash
-curl https://api.agentgate.mynewapi.com/v1/webhooks \
+curl https://agentgate.mynewapi.com/v1/webhooks \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
 ### Update Webhook
 
 ```bash
-curl -X PATCH https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+curl -X PATCH https://agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -401,7 +401,7 @@ curl -X PATCH https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
 ### Delete Webhook
 
 ```bash
-curl -X DELETE https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+curl -X DELETE https://agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 

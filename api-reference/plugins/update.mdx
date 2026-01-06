@@ -1,0 +1,87 @@
+---
+title: "Update Plugin"
+api: "PATCH /api/v1/verification/plugins/{id}"
+description: "Update a verification plugin"
+---
+
+# Update Plugin
+
+Updates an existing verification plugin configuration.
+
+<Note>
+  Built-in plugins (IDs starting with `built-in:`) cannot be modified.
+</Note>
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The plugin ID to update
+</ParamField>
+
+All body parameters are optional - only provided fields will be updated.
+
+<ParamField body="name" type="string">
+  Updated plugin name
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description
+</ParamField>
+
+<ParamField body="level" type="string">
+  Updated verification level
+</ParamField>
+
+<ParamField body="priority" type="number">
+  Updated priority
+</ParamField>
+
+<ParamField body="enabled" type="boolean">
+  Enable/disable the plugin
+</ParamField>
+
+<ParamField body="continueOnFail" type="boolean">
+  Updated continue-on-fail setting
+</ParamField>
+
+<ParamField body="options" type="object">
+  Updated plugin options
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  Updated webhook URL
+</ParamField>
+
+<ParamField body="webhookTimeoutMs" type="number">
+  Updated webhook timeout
+</ParamField>
+
+```bash
+curl -X PATCH https://agentgate.mynewapi.com/api/v1/verification/plugins/custom:security-scan \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "priority": 50,
+    "options": {
+      "severity": "critical"
+    }
+  }'
+```
+
+## Response
+
+Returns the updated plugin configuration.
+
+## Error Responses
+
+### Cannot Modify Built-in Plugin
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FORBIDDEN",
+    "message": "Built-in plugins cannot be modified"
+  }
+}
+```

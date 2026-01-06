@@ -1,0 +1,127 @@
+---
+title: "Get Config Snapshots"
+api: "GET /api/v1/audit/runs/{runId}/snapshots"
+description: "Get configuration snapshots for a run"
+---
+
+# Get Config Snapshots
+
+Returns all configuration snapshots taken during a run, showing the state at each iteration.
+
+## Request
+
+<ParamField path="runId" type="string" required>
+  The run ID to get snapshots for
+</ParamField>
+
+<ParamField query="iteration" type="number">
+  Filter to a specific iteration
+</ParamField>
+
+```bash
+curl "https://agentgate.mynewapi.com/api/v1/audit/runs/run_abc123/snapshots?iteration=2" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Snapshot list
+
+  <Expandable title="properties">
+    <ResponseField name="items" type="array" required>
+      Array of configuration snapshots
+      <Expandable title="properties">
+        <ResponseField name="id" type="string">
+          Snapshot ID
+        </ResponseField>
+        <ResponseField name="workOrderId" type="string">
+          Work order ID
+        </ResponseField>
+        <ResponseField name="runId" type="string">
+          Run ID
+        </ResponseField>
+        <ResponseField name="iteration" type="number">
+          Iteration number (0 = initial)
+        </ResponseField>
+        <ResponseField name="snapshotAt" type="string">
+          ISO 8601 timestamp
+        </ResponseField>
+        <ResponseField name="configHash" type="string">
+          Hash of the configuration
+        </ResponseField>
+        <ResponseField name="config" type="object">
+          Configuration at this point
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="total" type="number" required>
+      Total number of snapshots
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "snap_001",
+        "workOrderId": "wo_xyz789",
+        "runId": "run_abc123",
+        "iteration": 0,
+        "snapshotAt": "2024-01-15T10:30:00.000Z",
+        "configHash": "sha256:abc123...",
+        "config": {
+          "loopStrategy": {
+            "mode": "hybrid",
+            "maxIterations": 10
+          },
+          "verification": {
+            "skipLevels": []
+          },
+          "gitOps": {
+            "mode": "github-pr"
+          },
+          "executionLimits": {
+            "maxWallClockSeconds": 3600
+          }
+        }
+      },
+      {
+        "id": "snap_002",
+        "workOrderId": "wo_xyz789",
+        "runId": "run_abc123",
+        "iteration": 1,
+        "snapshotAt": "2024-01-15T10:45:00.000Z",
+        "configHash": "sha256:abc123...",
+        "config": {
+          "loopStrategy": {
+            "mode": "hybrid",
+            "maxIterations": 10
+          },
+          "verification": {
+            "skipLevels": []
+          },
+          "gitOps": {
+            "mode": "github-pr"
+          },
+          "executionLimits": {
+            "maxWallClockSeconds": 3600
+          }
+        }
+      }
+    ],
+    "total": 2
+  },
+  "requestId": "req_abc123"
+}
+```

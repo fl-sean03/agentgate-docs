@@ -1,0 +1,216 @@
+---
+title: "Purge Work Orders"
+api: "POST /api/v1/work-orders/purge"
+description: "Bulk delete work orders by status and age criteria"
+---
+
+# Purge Work Orders
+
+Bulk deletes work orders matching specified criteria. Supports filtering by status and age, with a dry-run mode to preview deletions.
+
+<Warning>
+  Purged work orders and their associated runs are permanently deleted. This action cannot be undone.
+</Warning>
+
+## Request
+
+<ParamField body="statuses" type="array">
+  Filter by work order statuses. If omitted, applies to all statuses.
+  Valid values: `queued`, `running`, `waiting_for_children`, `integrating`, `succeeded`, `failed`, `canceled`
+</ParamField>
+
+<ParamField body="olderThanDays" type="number">
+  Only delete work orders older than this many days
+</ParamField>
+
+<ParamField body="dryRun" type="boolean" default="false">
+  If true, returns what would be deleted without actually deleting
+</ParamField>
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "statuses": ["failed", "canceled"],
+    "olderThanDays": 30,
+    "dryRun": false
+  }'
+```
+
+### Dry Run Example
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "statuses": ["succeeded"],
+    "olderThanDays": 90,
+    "dryRun": true
+  }'
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Purge result
+
+  <Expandable title="properties">
+    <ResponseField name="deletedCount" type="number" required>
+      Number of work orders deleted (0 if dry run)
+    </ResponseField>
+
+    <ResponseField name="deletedIds" type="array" required>
+      Array of deleted work order IDs (empty if dry run)
+    </ResponseField>
+
+    <ResponseField name="wouldDelete" type="number">
+      Number of work orders that would be deleted (only in dry run)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Responses
+
+### Actual Purge
+
+```json
+{
+  "success": true,
+  "data": {
+    "deletedCount": 15,
+    "deletedIds": [
+      "wo_abc123",
+      "wo_def456",
+      "wo_ghi789",
+      "wo_jkl012",
+      "wo_mno345"
+    ]
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### Dry Run
+
+```json
+{
+  "success": true,
+  "data": {
+    "deletedCount": 0,
+    "deletedIds": [],
+    "wouldDelete": 42
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+### No Matches
+
+```json
+{
+  "success": true,
+  "data": {
+    "deletedCount": 0,
+    "deletedIds": []
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Common Purge Patterns
+
+### Clean Up Old Failures
+
+Delete failed work orders older than 7 days:
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "statuses": ["failed"],
+    "olderThanDays": 7
+  }'
+```
+
+### Archive Completed Work
+
+Delete successful work orders older than 90 days:
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "statuses": ["succeeded"],
+    "olderThanDays": 90
+  }'
+```
+
+### Clean All Terminal States
+
+Delete all completed (success, fail, cancel) work orders older than 30 days:
+
+```bash
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "statuses": ["succeeded", "failed", "canceled"],
+    "olderThanDays": 30
+  }'
+```
+
+### Preview Before Delete
+
+Always use dry run first to verify:
+
+```bash
+# Step 1: Check what would be deleted
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "statuses": ["failed"],
+    "olderThanDays": 7,
+    "dryRun": true
+  }'
+
+# Step 2: If results look correct, run actual purge
+curl -X POST https://agentgate.mynewapi.com/api/v1/work-orders/purge \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "statuses": ["failed"],
+    "olderThanDays": 7,
+    "dryRun": false
+  }'
+```
+
+## What Gets Deleted
+
+When a work order is purged:
+- The work order record
+- All associated runs
+- All run audit records
+- All iteration snapshots
+
+<Note>
+  Logs stored externally (e.g., in a log aggregation service) are not affected by purge.
+</Note>
+
+## Best Practices
+
+<Tip>
+  **Recommendations:**
+  - Always use `dryRun: true` first to preview deletions
+  - Set up automated purge for old successful work orders
+  - Keep failed work orders longer for debugging
+  - Export important data before purging
+</Tip>
+
+## Related
+
+- [List Work Orders](/api-reference/work-orders/list) - View work orders before purging
+- [Get Work Order](/api-reference/work-orders/get) - Check individual work order details

@@ -1,0 +1,126 @@
+---
+title: "Get Work Order Audit"
+api: "GET /api/v1/work-orders/{id}/audit"
+description: "Get audit trail for a work order across all runs"
+---
+
+# Get Work Order Audit
+
+Returns the audit trail for a work order, showing configuration snapshots and changes across all runs.
+
+## Request
+
+<ParamField path="id" type="string" required>
+  The work order ID (e.g., `wo_abc123`)
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/work-orders/wo_abc123/audit \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Audit information
+
+  <Expandable title="properties">
+    <ResponseField name="workOrderId" type="string" required>
+      Work order ID
+    </ResponseField>
+
+    <ResponseField name="runs" type="array" required>
+      Audit records for each run
+      <Expandable title="properties">
+        <ResponseField name="runId" type="string">
+          Run ID
+        </ResponseField>
+        <ResponseField name="iteration" type="number">
+          Final iteration number
+        </ResponseField>
+        <ResponseField name="startedAt" type="string">
+          ISO 8601 timestamp when run started
+        </ResponseField>
+        <ResponseField name="configHash" type="string">
+          Hash of initial configuration
+        </ResponseField>
+        <ResponseField name="changesCount" type="number">
+          Total number of configuration changes during run
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "workOrderId": "wo_abc123",
+    "runs": [
+      {
+        "runId": "run_001",
+        "iteration": 5,
+        "startedAt": "2024-01-15T10:30:00.000Z",
+        "configHash": "sha256:abc123def456...",
+        "changesCount": 2
+      },
+      {
+        "runId": "run_002",
+        "iteration": 3,
+        "startedAt": "2024-01-15T11:00:00.000Z",
+        "configHash": "sha256:abc123def456...",
+        "changesCount": 0
+      }
+    ]
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Error Responses
+
+### Work Order Not Found
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Work order not found: wo_invalid"
+  },
+  "requestId": "req_xyz789"
+}
+```
+
+## Use Cases
+
+- **Debugging**: Understand configuration changes that affected run behavior
+- **Compliance**: Audit trail for configuration changes
+- **Analysis**: Track which configurations lead to successful runs
+
+## Detailed Audit Information
+
+For detailed audit information about a specific run, use the dedicated audit endpoints:
+
+- [Get Audit Summary](/api-reference/audit/summary) - Detailed summary for a specific run
+- [Get Config Snapshots](/api-reference/audit/snapshots) - Configuration snapshots at each iteration
+- [Get Config Changes](/api-reference/audit/changes) - List of all configuration changes
+
+```bash
+# Get detailed audit for a specific run
+curl https://agentgate.mynewapi.com/api/v1/audit/runs/run_001 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Related
+
+- [Audit Summary](/api-reference/audit/summary) - Detailed run audit
+- [Config Snapshots](/api-reference/audit/snapshots) - Configuration history
+- [Config Changes](/api-reference/audit/changes) - Change log

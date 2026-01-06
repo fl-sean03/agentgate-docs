@@ -1,0 +1,110 @@
+---
+title: "Get Config Changes"
+api: "GET /api/v1/audit/runs/{runId}/changes"
+description: "Get configuration changes for a run"
+---
+
+# Get Config Changes
+
+Returns all configuration changes that occurred during a run, tracking what was modified and when.
+
+## Request
+
+<ParamField path="runId" type="string" required>
+  The run ID to get changes for
+</ParamField>
+
+```bash
+curl https://agentgate.mynewapi.com/api/v1/audit/runs/run_abc123/changes \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="data" type="object" required>
+  Changes list
+
+  <Expandable title="properties">
+    <ResponseField name="items" type="array" required>
+      Array of configuration changes
+      <Expandable title="properties">
+        <ResponseField name="iteration" type="number">
+          Iteration when change occurred
+        </ResponseField>
+        <ResponseField name="path" type="string">
+          Configuration path that changed (e.g., `loopStrategy.maxIterations`)
+        </ResponseField>
+        <ResponseField name="previousValue" type="any">
+          Value before the change
+        </ResponseField>
+        <ResponseField name="newValue" type="any">
+          Value after the change
+        </ResponseField>
+        <ResponseField name="changedAt" type="string">
+          ISO 8601 timestamp of the change
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="total" type="number" required>
+      Total number of changes
+    </ResponseField>
+
+    <ResponseField name="summary" type="object" required>
+      Change summary
+      <Expandable title="properties">
+        <ResponseField name="totalChanges" type="number">
+          Total number of changes
+        </ResponseField>
+        <ResponseField name="changedPaths" type="array">
+          List of all paths that were changed
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "iteration": 3,
+        "path": "loopStrategy.maxIterations",
+        "previousValue": 10,
+        "newValue": 15,
+        "changedAt": "2024-01-15T10:50:00.000Z"
+      },
+      {
+        "iteration": 4,
+        "path": "verification.skipLevels",
+        "previousValue": [],
+        "newValue": ["L2"],
+        "changedAt": "2024-01-15T11:00:00.000Z"
+      }
+    ],
+    "total": 2,
+    "summary": {
+      "totalChanges": 2,
+      "changedPaths": [
+        "loopStrategy.maxIterations",
+        "verification.skipLevels"
+      ]
+    }
+  },
+  "requestId": "req_abc123"
+}
+```
+
+## Use Cases
+
+- **Debugging**: Understand why a run behaved differently than expected
+- **Compliance**: Audit trail for configuration changes
+- **Analysis**: Track which settings are commonly adjusted during runs

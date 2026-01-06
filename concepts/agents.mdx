@@ -1,0 +1,565 @@
+---
+title: Agents
+description: "Understanding agent drivers - AI coding agents that execute tasks in AgentGate"
+---
+
+# Agents
+
+Agents are AI-powered coding assistants that execute tasks within AgentGate's orchestration framework. AgentGate supports multiple agent drivers, each with different capabilities, billing models, and use cases.
+
+## What Are Agents
+
+An agent is an AI system that can:
+
+- **Read and write code**: Understand codebases and make changes
+- **Execute commands**: Run tests, builds, and other shell commands
+- **Use tools**: Leverage MCP servers, browser automation, and custom tools
+- **Iterate on feedback**: Respond to verification failures and improve code
+
+AgentGate abstracts agent interaction through **drivers**, allowing you to swap between different AI providers and billing models.
+
+## Available Drivers
+
+<Tabs>
+  <Tab title="Claude Code Subscription">
+    **Use your Claude Pro/Max subscription**
+
+    The default driver that uses your Claude subscription for billing instead of API credits.
+
+    ```yaml
+    execution:
+      agent:
+        driver: claude-code-subscription
+        maxTokens: 200000
+    ```
+
+    **Requirements:**
+    - Active Claude Pro or Max subscription
+    - OAuth credentials at `~/.claude/.credentials.json`
+    - Claude CLI installed
+
+    **Capabilities:**
+    | Feature | Supported |
+    |---------|-----------|
+    | Session Resume | Yes |
+    | Structured Output | Yes |
+    | Tool Restriction | Yes |
+    | Timeout Control | Yes |
+    | Streaming | Yes |
+    | Cost Tracking | No (subscription) |
+
+    <Tip>
+      This driver automatically excludes `ANTHROPIC_API_KEY` from the environment to ensure subscription billing is used.
+    </Tip>
+  </Tab>
+
+  <Tab title="Claude Code API">
+    **Use Anthropic API credits**
+
+    Uses your Anthropic API key for pay-per-use billing.
+
+    ```yaml
+    execution:
+      agent:
+        driver: claude-code-api
+        model: claude-sonnet-4-20250514
+        maxTokens: 200000
+    ```
+
+    **Requirements:**
+    - `ANTHROPIC_API_KEY` environment variable
+    - Claude CLI installed
+
+    **Capabilities:**
+    | Feature | Supported |
+    |---------|-----------|
+    | Session Resume | Yes |
+    | Structured Output | Yes |
+    | Tool Restriction | Yes |
+    | Timeout Control | Yes |
+    | Streaming | Yes |
+    | Cost Tracking | Yes |
+  </Tab>
+
+  <Tab title="Claude Agent SDK">
+    **Direct SDK integration**
+
+    Uses the Claude Agent SDK's `query()` function for programmatic control.
+
+    ```yaml
+    execution:
+      agent:
+        driver: claude-agent-sdk
+        model: claude-opus-4-20250514
+        maxTokens: 200000
+        temperature: 0.7
+        systemPrompt: |
+          You are an expert backend developer.
+          Follow the project's existing patterns.
+    ```
+
+    **Requirements:**
+    - `ANTHROPIC_API_KEY` environment variable
+    - Claude CLI installed (SDK dependency)
+
+    **Capabilities:**
+    | Feature | Supported |
+    |---------|-----------|
+    | Session Resume | Yes |
+    | Structured Output | Yes |
+    | Tool Restriction | Yes |
+    | Timeout Control | Yes |
+    | Hooks Support | Yes |
+    | Cost Tracking | Yes |
+
+    <Tip>
+      The SDK driver provides the most programmatic control and is ideal for complex orchestration scenarios.
+    </Tip>
+  </Tab>
+
+  <Tab title="OpenCode">
+    **Open source AI coding agent**
+
+    Integration with the OpenCode agent.
+
+    ```yaml
+    execution:
+      agent:
+        driver: opencode
+        model: gpt-4
+    ```
+
+    **Requirements:**
+    - OpenCode CLI installed
+    - Appropriate API keys configured
+  </Tab>
+
+  <Tab title="OpenAI Codex">
+    **OpenAI's coding model**
+
+    Uses OpenAI's Codex for code generation.
+
+    ```yaml
+    execution:
+      agent:
+        driver: openai-codex
+        model: code-davinci-002
+    ```
+
+    **Requirements:**
+    - `OPENAI_API_KEY` environment variable
+  </Tab>
+</Tabs>
+
+## Agent Specification
+
+Configure agents in the `execution.agent` section of your TaskSpec:
+
+```yaml
+execution:
+  agent:
+    driver: claude-agent-sdk
+    model: claude-sonnet-4-20250514
+    maxTokens: 200000
+    temperature: 0.7
+    systemPrompt: |
+      You are an expert TypeScript developer.
+      Write clean, well-tested code.
+      Follow the project's existing patterns.
+    tools:
+      - name: bash
+        enabled: true
+      - name: file_system
+        enabled: true
+      - name: browser
+        enabled: false
+    mcpServers:
+      filesystem:
+        command: "npx"
+        args: ["-y", "@anthropic/mcp-server-filesystem"]
+        env:
+          ALLOWED_PATHS: "/workspace"
+    capabilities:
+      fileSystem: true
+      network: true
+      shell: true
+      browser: false
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `driver` | string | `claude-code-subscription` | Agent driver to use |
+| `model` | string | varies | AI model (e.g., `claude-sonnet-4-20250514`) |
+| `maxTokens` | number | 200000 | Maximum context tokens |
+| `temperature` | number | 0.7 | Generation temperature (0-2) |
+| `systemPrompt` | string | - | Custom system prompt |
+| `tools` | ToolSpec[] | - | Tool configurations |
+| `mcpServers` | object | - | MCP server configurations |
+| `capabilities` | object | - | Capability flags |
+
+## Agent Capabilities
+
+Capabilities define what actions an agent can perform:
+
+```yaml
+capabilities:
+  fileSystem: true   # Read/write files
+  network: true      # Make HTTP requests
+  shell: true        # Execute shell commands
+  browser: false     # Browser automation
+```
+
+### Standard Capabilities
+
+AgentGate defines these standard capability names:
+
+| Capability | Description |
+|------------|-------------|
+| `network` | Network access for HTTP requests |
+| `filesystem` | Read and write files |
+| `shell` | Execute shell commands |
+| `browser` | Browser automation (Playwright, etc.) |
+| `docker` | Docker container operations |
+| `database` | Database access |
+| `code-execution` | Execute code in various languages |
+| `tool-use` | Use MCP tools and servers |
+
+### Capability Matching
+
+When a task has capability requirements, AgentGate matches them against available agents:
+
+```yaml
+# In TaskSpec
+spec:
+  goal:
+    prompt: "Scrape data from website"
+    requirements:
+      requiredCapabilities:
+        - name: browser
+          required: true
+        - name: network
+          required: true
+      preferredCapabilities:
+        - name: shell
+          required: false
+```
+
+## Tools and MCP Servers
+
+### Tool Configuration
+
+Enable or disable specific tools:
+
+```yaml
+tools:
+  - name: bash
+    enabled: true
+    config:
+      allowedCommands: ["npm", "git", "node"]
+
+  - name: file_system
+    enabled: true
+    config:
+      allowedPaths: ["/workspace"]
+
+  - name: browser
+    enabled: false  # Disable browser tool
+```
+
+### MCP Server Configuration
+
+Configure Model Context Protocol servers:
+
+```yaml
+mcpServers:
+  filesystem:
+    command: "npx"
+    args: ["-y", "@anthropic/mcp-server-filesystem"]
+    env:
+      ALLOWED_PATHS: "/workspace"
+
+  github:
+    command: "npx"
+    args: ["-y", "@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: "${GITHUB_TOKEN}"
+
+  postgres:
+    command: "npx"
+    args: ["-y", "@anthropic/mcp-server-postgres"]
+    env:
+      DATABASE_URL: "${DATABASE_URL}"
+```
+
+## Agent Request Flow
+
+When AgentGate executes a task, it creates an `AgentRequest`:
+
+```typescript
+interface AgentRequest {
+  workspacePath: string;     // Path to code workspace
+  taskPrompt: string;        // What to accomplish
+  gatePlanSummary: string;   // Gates that must pass
+  constraints: {
+    allowedTools: string[];
+    disallowedTools: string[];
+    maxTurns: number;
+    permissionMode: 'plan' | 'acceptEdits' | 'bypassPermissions';
+    additionalSystemPrompt: string | null;
+  };
+  priorFeedback: string | null;  // Feedback from failed gates
+  timeoutMs: number;
+  sessionId: string | null;      // For session resume
+}
+```
+
+### Agent Result
+
+Agents return structured results:
+
+```typescript
+interface AgentResult {
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  structuredOutput: {
+    type?: string;
+    result: string;
+    total_cost_usd?: number;
+    usage?: {
+      input_tokens: number;
+      output_tokens: number;
+    };
+  } | null;
+  sessionId: string | null;
+  tokensUsed: {
+    input: number;
+    output: number;
+    cacheRead?: number;
+    cacheCreation?: number;
+  } | null;
+  durationMs: number;
+  totalCostUsd?: number;
+  model?: string;
+}
+```
+
+## Constraints
+
+Control agent behavior with constraints:
+
+```yaml
+constraints:
+  # Tools the agent CAN use
+  allowedTools:
+    - bash
+    - file_system
+    - read
+    - write
+    - edit
+
+  # Tools the agent CANNOT use
+  disallowedTools:
+    - browser
+    - web_search
+
+  # Maximum conversation turns
+  maxTurns: 50
+
+  # Permission mode
+  permissionMode: acceptEdits  # plan | acceptEdits | bypassPermissions
+
+  # Additional system prompt
+  additionalSystemPrompt: |
+    Focus on security best practices.
+    Do not commit secrets to version control.
+```
+
+### Permission Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `plan` | Agent plans but asks before executing | High-risk changes |
+| `acceptEdits` | Agent can edit files automatically | Normal development |
+| `bypassPermissions` | Full autonomy | Trusted automation |
+
+## Session Management
+
+Agents can resume sessions for multi-iteration tasks:
+
+```yaml
+# AgentGate automatically manages sessions
+convergence:
+  strategy: ralph
+  config:
+    promptHotReload: true  # Allow prompt updates mid-session
+```
+
+### Session Resume
+
+When a gate fails and triggers iteration:
+
+1. AgentGate captures the `sessionId` from the result
+2. Next iteration passes `sessionId` in the request
+3. Agent resumes with full conversation context
+4. Feedback from failed gates is appended
+
+<Warning>
+  Not all drivers support session resume. Check `supportsSessionResume` in capabilities.
+</Warning>
+
+## Billing Methods
+
+### Subscription Billing
+
+The `claude-code-subscription` driver uses your Claude Pro/Max subscription:
+
+- No per-token charges
+- Rate limits based on subscription tier
+- Requires OAuth authentication
+
+### API Billing
+
+The `claude-code-api` and `claude-agent-sdk` drivers use API credits:
+
+- Pay-per-token pricing
+- Higher rate limits available
+- Cost tracked in `totalCostUsd`
+
+```yaml
+# Track costs in your TaskSpec
+convergence:
+  limits:
+    maxCost: "$50"  # Stop if cost exceeds $50
+```
+
+## Driver Selection
+
+AgentGate uses a driver registry to select agents:
+
+```typescript
+// Drivers are registered at startup
+driverRegistry.register(new ClaudeCodeSubscriptionDriver());
+driverRegistry.register(new ClaudeAgentSDKDriver());
+
+// Get specific driver
+const driver = driverRegistry.get('claude-code-subscription');
+
+// Get default driver
+const defaultDriver = driverRegistry.getDefault();
+```
+
+### Automatic Selection
+
+If you don't specify a driver, AgentGate selects based on availability:
+
+1. Check if `claude-code-subscription` is available (subscription valid)
+2. Fall back to `claude-code-api` if API key is set
+3. Try other registered drivers
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose the Right Driver">
+    - **claude-code-subscription**: Best for regular development work
+    - **claude-agent-sdk**: Best for complex orchestration
+    - **claude-code-api**: Best when you need cost tracking
+  </Step>
+
+  <Step title="Set Appropriate Limits">
+    ```yaml
+    execution:
+      agent:
+        maxTokens: 200000  # Match your model's context
+
+    convergence:
+      limits:
+        maxCost: "$100"    # Prevent runaway costs
+        maxTokens: 1000000 # Total token budget
+    ```
+  </Step>
+
+  <Step title="Use Constraints Wisely">
+    - Disable unused tools to reduce context
+    - Set `maxTurns` to prevent infinite loops
+    - Use `additionalSystemPrompt` for task-specific guidance
+  </Step>
+
+  <Step title="Leverage Session Resume">
+    - Use `ralph` strategy for session continuity
+    - Provide context pointers for large codebases
+    - Enable `promptHotReload` for iterative refinement
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Subscription not available">
+    Check that:
+    1. You have an active Claude Pro/Max subscription
+    2. OAuth credentials exist at `~/.claude/.credentials.json`
+    3. The credentials are not expired
+
+    ```bash
+    # Verify subscription status
+    claude auth status
+    ```
+  </Accordion>
+
+  <Accordion title="API key not working">
+    Verify your API key:
+    ```bash
+    # Check if key is set
+    echo $ANTHROPIC_API_KEY
+
+    # Test API access
+    curl https://api.anthropic.com/v1/messages \
+      -H "x-api-key: $ANTHROPIC_API_KEY" \
+      -H "anthropic-version: 2023-06-01" \
+      -d '{"model":"claude-sonnet-4-20250514","max_tokens":1,"messages":[{"role":"user","content":"Hi"}]}'
+    ```
+  </Accordion>
+
+  <Accordion title="Agent timeout">
+    Increase timeout in your TaskSpec:
+    ```yaml
+    execution:
+      sandbox:
+        resources:
+          timeout: "2h"  # Increase from default
+    ```
+  </Accordion>
+
+  <Accordion title="Tool not available">
+    Check tool configuration:
+    ```yaml
+    tools:
+      - name: browser
+        enabled: true  # Ensure it's enabled
+
+    capabilities:
+      browser: true    # And capability is set
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="TaskSpec" icon="file-code" href="/concepts/task-spec">
+    Configure agents within TaskSpec
+  </Card>
+  <Card title="Execution" icon="server" href="/concepts/execution">
+    Workspace and sandbox configuration
+  </Card>
+  <Card title="Convergence" icon="rotate" href="/concepts/convergence">
+    Iteration and session management
+  </Card>
+  <Card title="Gates" icon="shield-check" href="/concepts/gates">
+    Verification checkpoints for agents
+  </Card>
+</CardGroup>
