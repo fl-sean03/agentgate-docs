@@ -1,0 +1,258 @@
+---
+title: Error Codes
+description: "Complete reference of AgentGate error codes"
+---
+
+# Error Codes
+
+This reference lists all error codes returned by the AgentGate API.
+
+## Error Response Format
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description",
+    "details": {
+      // Additional context (varies by error)
+    }
+  }
+}
+```
+
+## Authentication Errors (401)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `MISSING_API_KEY` | No API key provided | Include `Authorization: Bearer <key>` header |
+| `INVALID_API_KEY` | API key format invalid | Check key format (should start with `org_live_`) |
+| `EXPIRED_API_KEY` | API key has been revoked | Create a new API key in dashboard |
+| `INVALID_API_KEY_FORMAT` | Malformed authorization header | Use format `Bearer <key>` |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "INVALID_API_KEY",
+    "message": "The provided API key is invalid"
+  }
+}
+```
+
+## Authorization Errors (403)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `INSUFFICIENT_PERMISSIONS` | Key lacks required scope | Create key with needed scopes |
+| `SCOPE_REQUIRED` | Specific scope needed | Check endpoint requirements |
+| `ORGANIZATION_SUSPENDED` | Organization access suspended | Contact support |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_PERMISSIONS",
+    "message": "API key lacks required scope",
+    "details": {
+      "requiredScope": "work-orders:write",
+      "availableScopes": ["work-orders:read", "runs:read"]
+    }
+  }
+}
+```
+
+## Validation Errors (400)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `INVALID_REQUEST` | Request body invalid | Check request format |
+| `MISSING_FIELD` | Required field missing | Include required field |
+| `INVALID_FORMAT` | Field format invalid | Check field requirements |
+| `INVALID_VALUE` | Field value not allowed | Use allowed values |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request validation failed",
+    "details": {
+      "errors": [
+        {
+          "field": "taskPrompt",
+          "message": "must not be empty"
+        },
+        {
+          "field": "workspaceSource.repository",
+          "message": "is required when type is 'git'"
+        }
+      ]
+    }
+  }
+}
+```
+
+## Payment Errors (402)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `INSUFFICIENT_CREDITS` | Not enough credits | Purchase more credits |
+| `BILLING_ERROR` | Billing configuration issue | Check billing settings |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_CREDITS",
+    "message": "Insufficient credits to submit work order",
+    "details": {
+      "estimatedCost": 500,
+      "availableCredits": 200
+    }
+  }
+}
+```
+
+## Not Found Errors (404)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `RESOURCE_NOT_FOUND` | Resource doesn't exist | Check ID is correct |
+| `RUN_NOT_FOUND` | Run ID not found | Verify run ID |
+| `WORK_ORDER_NOT_FOUND` | Work order ID not found | Verify work order ID |
+| `WEBHOOK_NOT_FOUND` | Webhook ID not found | Verify webhook ID |
+| `TEMPLATE_NOT_FOUND` | Template ID not found | Verify template ID |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "RUN_NOT_FOUND",
+    "message": "Run not found",
+    "details": {
+      "runId": "run_nonexistent"
+    }
+  }
+}
+```
+
+## Rate Limit Errors (429)
+
+| Code | Description | Solution |
+|------|-------------|----------|
+| `RATE_LIMITED` | Too many requests | Wait and retry |
+| `CONCURRENT_LIMIT` | Too many concurrent runs | Wait for runs to complete |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Rate limit exceeded",
+    "details": {
+      "limit": 100,
+      "remaining": 0,
+      "resetAt": "2024-01-15T10:35:00Z"
+    }
+  }
+}
+```
+
+**Headers included:**
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1705316100
+Retry-After: 60
+```
+
+## Server Errors (5xx)
+
+| Status | Code | Description | Solution |
+|--------|------|-------------|----------|
+| 500 | `INTERNAL_ERROR` | Server error | Retry with backoff |
+| 503 | `SERVICE_UNAVAILABLE` | Service temporarily unavailable | Retry later |
+| 504 | `TIMEOUT` | Request timed out | Retry |
+
+### Example
+
+```json
+{
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "An unexpected error occurred",
+    "details": {
+      "requestId": "req_abc123"
+    }
+  }
+}
+```
+
+<Note>
+  Include the `requestId` when contacting support about server errors.
+</Note>
+
+## Run Error Codes
+
+These codes appear in failed run results, not API responses.
+
+| Code | Description | Common Causes |
+|------|-------------|---------------|
+| `MAX_ITERATIONS_REACHED` | Didn't converge in time | Complex task, unclear prompt |
+| `VERIFICATION_FAILED` | Verification never passed | Test failures, type errors |
+| `WORKSPACE_ERROR` | Workspace setup failed | Invalid repo, missing access |
+| `EXECUTION_TIMEOUT` | Run took too long | Complex task, slow tests |
+| `CANCELLED` | User cancelled run | Explicit cancellation |
+
+### Example (in run result)
+
+```json
+{
+  "id": "run_abc123",
+  "status": "failed",
+  "error": {
+    "code": "MAX_ITERATIONS_REACHED",
+    "message": "Run did not converge within 10 iterations",
+    "details": {
+      "iterations": 10,
+      "lastVerificationResult": {
+        "level": "L1",
+        "passed": false,
+        "failures": ["tests/user.test.ts failed"]
+      }
+    }
+  }
+}
+```
+
+## Handling Errors
+
+See [Error Handling Guide](/guides/error-handling) for best practices.
+
+```typescript
+try {
+  await client.workOrders.create(/* ... */);
+} catch (error) {
+  switch (error.code) {
+    case 'INSUFFICIENT_CREDITS':
+      // Handle credit issues
+      break;
+    case 'RATE_LIMITED':
+      // Wait and retry
+      break;
+    case 'INVALID_REQUEST':
+      // Fix validation errors
+      break;
+    default:
+      // Log and handle unknown errors
+  }
+}
+```

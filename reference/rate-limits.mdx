@@ -1,0 +1,251 @@
+---
+title: Rate Limits
+description: "API rate limits and how to handle them"
+---
+
+# Rate Limits
+
+AgentGate applies rate limits to ensure fair usage and platform stability.
+
+## Default Limits
+
+| Limit | Value | Scope |
+|-------|-------|-------|
+| API requests | 100/minute | Per organization |
+| Work order submissions | 20/minute | Per organization |
+| Concurrent runs | 10 | Per organization |
+| Webhook test requests | 10/minute | Per webhook |
+
+<Note>
+  Enterprise plans may have higher limits. Contact sales for custom limits.
+</Note>
+
+## Rate Limit Headers
+
+All API responses include rate limit headers:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1705316100
+```
+
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Maximum requests in window |
+| `X-RateLimit-Remaining` | Remaining requests in window |
+| `X-RateLimit-Reset` | Unix timestamp when window resets |
+
+## When Limits Are Hit
+
+When rate limited, you receive:
+
+**Status**: `429 Too Many Requests`
+
+**Headers**:
+```http
+Retry-After: 30
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1705316100
+```
+
+**Body**:
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Rate limit exceeded",
+    "details": {
+      "limit": 100,
+      "remaining": 0,
+      "resetAt": "2024-01-15T10:35:00Z"
+    }
+  }
+}
+```
+
+## Handling Rate Limits
+
+### Respect Retry-After
+
+The `Retry-After` header indicates how long to wait:
+
+```typescript
+async function makeRequest() {
+  try {
+    return await client.workOrders.create(/* ... */);
+  } catch (error) {
+    if (error.status === 429) {
+      const retryAfter = error.headers['retry-after'] || 60;
+      console.log(`Rate limited, waiting ${retryAfter}s`);
+      await sleep(retryAfter * 1000);
+      return makeRequest(); // Retry
+    }
+    throw error;
+  }
+}
+```
+
+### Implement Exponential Backoff
+
+For robust handling:
+
+```typescript
+async function withBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3
+): Promise<T> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.status === 429 && attempt < maxRetries - 1) {
+        const retryAfter = error.headers['retry-after'];
+        const delay = retryAfter
+          ? parseInt(retryAfter) * 1000
+          : Math.min(1000 * Math.pow(2, attempt), 30000);
+
+        await sleep(delay);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+```
+
+### Monitor Remaining Requests
+
+Proactively slow down when approaching limits:
+
+```typescript
+async function makeThrottledRequest() {
+  const response = await fetch(/* ... */);
+
+  const remaining = parseInt(response.headers.get('X-RateLimit-Remaining'));
+  const limit = parseInt(response.headers.get('X-RateLimit-Limit'));
+
+  // Slow down if under 10% remaining
+  if (remaining < limit * 0.1) {
+    console.warn(`Rate limit warning: ${remaining}/${limit} remaining`);
+    await sleep(1000); // Add delay
+  }
+
+  return response.json();
+}
+```
+
+## Best Practices
+
+### Batch When Possible
+
+Instead of many individual requests:
+
+```typescript
+// Less efficient
+for (const item of items) {
+  await client.runs.get(item.runId);
+}
+
+// More efficient (if API supports batch)
+const runs = await client.runs.list({
+  ids: items.map(i => i.runId)
+});
+```
+
+### Use Webhooks
+
+Webhooks don't count against rate limits and are more efficient than polling:
+
+```typescript
+// Polling: Many requests
+while (run.status === 'running') {
+  await sleep(5000);
+  run = await client.runs.get(runId); // Counts against limit
+}
+
+// Webhooks: Zero polling requests
+// Wait for webhook callback instead
+```
+
+### Cache Responses
+
+Cache data that doesn't change frequently:
+
+```typescript
+const cache = new Map();
+
+async function getTemplate(id: string) {
+  if (cache.has(id)) {
+    return cache.get(id);
+  }
+
+  const template = await client.templates.get(id);
+  cache.set(id, template);
+  return template;
+}
+```
+
+### Queue and Throttle
+
+For bulk operations, use a rate-limited queue:
+
+```typescript
+import Bottleneck from 'bottleneck';
+
+const limiter = new Bottleneck({
+  maxConcurrent: 5,
+  minTime: 100 // 100ms between requests
+});
+
+async function submitBatch(workOrders: CreateWorkOrderRequest[]) {
+  return Promise.all(
+    workOrders.map(wo =>
+      limiter.schedule(() => client.workOrders.create(wo))
+    )
+  );
+}
+```
+
+## Concurrent Run Limits
+
+In addition to API rate limits, there's a limit on concurrent runs:
+
+| Plan | Concurrent Runs |
+|------|-----------------|
+| Starter | 5 |
+| Pro | 10 |
+| Enterprise | Custom |
+
+If you hit the concurrent limit:
+
+```json
+{
+  "error": {
+    "code": "CONCURRENT_LIMIT",
+    "message": "Maximum concurrent runs reached",
+    "details": {
+      "limit": 10,
+      "active": 10
+    }
+  }
+}
+```
+
+Wait for existing runs to complete before submitting new work orders.
+
+## Requesting Limit Increases
+
+If you need higher limits:
+
+1. **Document your use case**: Explain why current limits are insufficient
+2. **Show usage patterns**: Provide data on your typical request patterns
+3. **Contact support**: Email support or use the dashboard contact form
+
+Include:
+- Current organization ID
+- Specific limits you need increased
+- Expected request volume
+- Business justification

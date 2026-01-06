@@ -1,0 +1,285 @@
+---
+title: Best Practices
+description: "Guidelines for effective AgentGate usage"
+---
+
+# Best Practices
+
+Follow these guidelines to get the best results from AgentGate.
+
+## Task Prompt Engineering
+
+The task prompt is the most important factor in run success.
+
+### Be Specific
+
+<Tabs>
+  <Tab title="Good">
+    ```
+    Add input validation to the createUser function in src/services/user.ts.
+    Validate that email is a valid email format and password is at least 8
+    characters. Return appropriate error messages for invalid inputs.
+    ```
+  </Tab>
+  <Tab title="Bad">
+    ```
+    Add validation to the user service.
+    ```
+  </Tab>
+</Tabs>
+
+### Provide Context
+
+Include relevant background information:
+
+```
+This is a Node.js Express API using TypeScript. We use Zod for validation
+and follow the repository pattern. Error responses should use our standard
+ApiError class from src/utils/errors.ts.
+```
+
+### Define Acceptance Criteria
+
+State what success looks like:
+
+```
+The function should:
+1. Return early with a 400 error if email format is invalid
+2. Return early with a 400 error if password is under 8 characters
+3. Include specific error messages indicating which field failed
+4. Add unit tests covering both valid and invalid inputs
+```
+
+### Specify Constraints
+
+Mention what to avoid:
+
+```
+Do not modify the database schema. Do not change the function signature.
+Use existing utility functions from src/utils where applicable.
+```
+
+## Workspace Optimization
+
+### Keep Repositories Focused
+
+<AccordionGroup>
+  <Accordion title="Smaller is Better">
+    Large repositories take longer to clone and may hit size limits. Consider:
+    - Using sparse checkout for monorepos
+    - Excluding large binaries
+    - Removing unnecessary history
+  </Accordion>
+
+  <Accordion title="Use Templates for Common Setups">
+    If you frequently start from scratch, create organization templates with:
+    - Standard project structure
+    - Common dependencies pre-installed
+    - Build and test configuration
+  </Accordion>
+</AccordionGroup>
+
+### Ensure Reproducibility
+
+- **Use lock files**: `package-lock.json`, `poetry.lock`, etc.
+- **Pin versions**: Avoid `latest` tags in dependencies
+- **Document environment**: Include required environment variables
+
+### Configure for Automation
+
+Ensure your workspace works without human interaction:
+
+- Tests run headlessly (no browser popups)
+- Builds complete without prompts
+- No required user input during setup
+
+## Cost Optimization
+
+### Right-Size Iteration Limits
+
+| Task Type | Suggested Limit |
+|-----------|----------------|
+| Simple changes | 3-5 iterations |
+| Medium complexity | 5-10 iterations |
+| Complex refactors | 10-15 iterations |
+
+```json
+{
+  "taskPrompt": "Fix typo in error message",
+  "maxIterations": 3
+}
+```
+
+### Use Appropriate Verification
+
+Match verification level to task needs:
+
+- **Quick prototypes**: L0 only
+- **Bug fixes**: L0 + L1
+- **Production features**: All levels
+
+### Break Down Complex Tasks
+
+Instead of one complex work order:
+
+```
+Refactor the entire authentication system to use JWT tokens
+```
+
+Submit multiple focused work orders:
+
+```
+1. Add JWT utility functions to src/utils/jwt.ts
+2. Update login endpoint to return JWT tokens
+3. Add JWT validation middleware
+4. Update protected routes to use new middleware
+```
+
+## Security Considerations
+
+### API Key Management
+
+<Warning>
+  Never commit API keys to source control.
+</Warning>
+
+- Use environment variables
+- Rotate keys periodically
+- Use minimum necessary scopes
+- Different keys for different environments
+
+### Webhook Security
+
+Always verify webhook signatures:
+
+```typescript
+function verifyWebhook(req: Request): boolean {
+  const signature = req.headers['x-agentgate-signature'];
+  const expected = computeSignature(req.body, WEBHOOK_SECRET);
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+### Credential Handling
+
+When work orders need credentials (private repos, APIs):
+
+- Configure credentials in AgentGate dashboard
+- Use environment variables in workspaces
+- Never include credentials in task prompts
+
+## Performance Tips
+
+### Use Webhooks
+
+Webhooks are more efficient than polling:
+
+| Approach | API Calls per Run |
+|----------|-------------------|
+| Polling (5s interval, 5min run) | 60 calls |
+| Webhooks | 1 callback |
+
+### Concurrent Work Orders
+
+AgentGate can run multiple work orders in parallel. For batch operations:
+
+```typescript
+// Submit all at once
+const workOrders = await Promise.all(
+  tasks.map(task => client.workOrders.create(task))
+);
+
+// Results come via webhooks
+```
+
+### Webhook Processing
+
+Process webhooks asynchronously to avoid timeouts:
+
+```typescript
+app.post('/webhooks/agentgate', (req, res) => {
+  res.sendStatus(200); // Respond immediately
+  processAsync(req.body); // Handle in background
+});
+```
+
+## Monitoring and Observability
+
+### Track Key Metrics
+
+- **Success rate**: Runs succeeded / total runs
+- **Convergence speed**: Average iterations to success
+- **Cost per task**: Credits used / tasks completed
+- **Webhook latency**: Time from completion to processing
+
+### Set Up Alerts
+
+```typescript
+// Alert on unusual patterns
+if (run.iterations >= maxIterations * 0.8) {
+  alert('Run approaching iteration limit', run.id);
+}
+
+if (dailyUsage > usageBudget * 0.9) {
+  alert('Approaching daily usage limit', dailyUsage);
+}
+```
+
+### Log for Debugging
+
+Include correlation IDs for tracing:
+
+```typescript
+const requestId = generateId();
+
+logger.info('Submitting work order', { requestId, taskPrompt });
+
+const workOrder = await client.workOrders.create({
+  ...config,
+  metadata: { requestId }
+});
+
+logger.info('Work order created', { requestId, runId: workOrder.runId });
+```
+
+## Common Pitfalls
+
+<AccordionGroup>
+  <Accordion title="Vague Task Prompts">
+    **Problem**: "Make the code better"
+
+    **Solution**: Be specific about what "better" means—faster, more readable, more secure, etc.
+  </Accordion>
+
+  <Accordion title="Missing Test Coverage">
+    **Problem**: No tests to verify changes
+
+    **Solution**: Include test requirements in prompts, or ensure existing tests cover the modified code.
+  </Accordion>
+
+  <Accordion title="Ignoring Verification Failures">
+    **Problem**: High iteration counts indicate verification issues
+
+    **Solution**: Review failed runs to understand what's failing and improve prompts or fix underlying issues.
+  </Accordion>
+
+  <Accordion title="Not Using Tenant Context">
+    **Problem**: Can't attribute usage in B2B2C scenarios
+
+    **Solution**: Always include tenant context for multi-tenant applications.
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Integration Patterns" icon="puzzle-piece" href="/guides/integration-patterns">
+    Common integration architectures
+  </Card>
+  <Card title="Error Handling" icon="bug" href="/guides/error-handling">
+    Handle errors gracefully
+  </Card>
+</CardGroup>

@@ -1,0 +1,39 @@
+---
+title: Delete Template
+api: DELETE /v1/templates/{id}
+description: Delete a template
+---
+
+<ParamField path="id" type="string" required>
+  Template ID to delete.
+</ParamField>
+
+<Warning>
+  This action is irreversible. Built-in templates cannot be deleted.
+</Warning>
+
+<Note>
+  Deleting a template does not affect existing workspaces created from it.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 204
+// No content
+```
+
+```json 400
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Cannot delete built-in template"
+  }
+}
+```
+</ResponseExample>

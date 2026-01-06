@@ -1,0 +1,146 @@
+---
+title: Python SDK
+description: "Official Python SDK for AgentGate"
+---
+
+# Python SDK
+
+<Info>
+  The official Python SDK is coming soon. In the meantime, use the REST API directly.
+</Info>
+
+## Using the REST API with Python
+
+### Installation
+
+```bash
+pip install requests
+```
+
+### Basic Usage
+
+```python
+import os
+import requests
+
+API_KEY = os.environ['AGENTGATE_API_KEY']
+BASE_URL = 'https://api.agentgate.mynewapi.com'
+
+headers = {
+    'Authorization': f'Bearer {API_KEY}',
+    'Content-Type': 'application/json'
+}
+
+# Create work order
+response = requests.post(
+    f'{BASE_URL}/v1/work-orders',
+    headers=headers,
+    json={
+        'taskPrompt': 'Add error handling to the API routes',
+        'workspaceSource': {
+            'type': 'git',
+            'repository': 'https://github.com/your-org/your-repo',
+            'branch': 'main'
+        }
+    }
+)
+
+work_order = response.json()
+print(f"Run ID: {work_order['runId']}")
+
+# Check run status
+run_response = requests.get(
+    f"{BASE_URL}/v1/runs/{work_order['runId']}",
+    headers=headers
+)
+
+run = run_response.json()
+print(f"Status: {run['status']}")
+```
+
+### Error Handling
+
+```python
+import requests
+
+def create_work_order(task_prompt, repo):
+    try:
+        response = requests.post(
+            f'{BASE_URL}/v1/work-orders',
+            headers=headers,
+            json={
+                'taskPrompt': task_prompt,
+                'workspaceSource': {
+                    'type': 'git',
+                    'repository': repo
+                }
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        error = e.response.json().get('error', {})
+        if e.response.status_code == 402:
+            print(f"Insufficient credits: {error.get('details')}")
+        elif e.response.status_code == 429:
+            retry_after = e.response.headers.get('Retry-After', 60)
+            print(f"Rate limited, retry after {retry_after}s")
+        else:
+            print(f"Error: {error.get('message')}")
+        raise
+```
+
+### Webhook Signature Verification
+
+```python
+import hmac
+import hashlib
+
+def verify_signature(body: bytes, signature: str, secret: str) -> bool:
+    expected = 'sha256=' + hmac.new(
+        secret.encode(),
+        body,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(signature, expected)
+
+# In your webhook handler (Flask example)
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+WEBHOOK_SECRET = os.environ['WEBHOOK_SECRET']
+
+@app.route('/webhooks/agentgate', methods=['POST'])
+def handle_webhook():
+    signature = request.headers.get('X-AgentGate-Signature')
+    if not verify_signature(request.get_data(), signature, WEBHOOK_SECRET):
+        abort(401)
+
+    event = request.get_json()
+    print(f"Received: {event['type']}")
+
+    return '', 200
+```
+
+## Coming Soon
+
+The official Python SDK will include:
+
+- Typed models with Pydantic
+- Async support with aiohttp
+- Automatic retries with backoff
+- Built-in rate limit handling
+- Webhook signature verification helpers
+
+Subscribe to our changelog for updates.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    REST API documentation
+  </Card>
+  <Card title="TypeScript SDK" icon="node-js" href="/sdks/typescript">
+    TypeScript SDK (available now)
+  </Card>
+</CardGroup>

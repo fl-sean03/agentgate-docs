@@ -1,0 +1,727 @@
+openapi: 3.1.0
+info:
+  title: AgentGate API
+  version: 1.0.0
+  description: |
+    AgentGate is B2B infrastructure for verified AI code automation.
+
+    Submit work orders describing tasks, and AgentGate executes them with built-in verification.
+  contact:
+    name: AgentGate Support
+    url: https://agentgate.mynewapi.com/support
+    email: support@agentgate.mynewapi.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.agentgate.mynewapi.com
+    description: Production
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: Organization API key with `org_live_` prefix
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              description: Additional error details
+
+    WorkspaceSource:
+      oneOf:
+        - $ref: '#/components/schemas/GitWorkspaceSource'
+        - $ref: '#/components/schemas/TemplateWorkspaceSource'
+      discriminator:
+        propertyName: type
+
+    GitWorkspaceSource:
+      type: object
+      required:
+        - type
+        - repository
+      properties:
+        type:
+          type: string
+          enum: [git]
+        repository:
+          type: string
+          description: Git repository URL
+        branch:
+          type: string
+          description: Branch to clone
+        commit:
+          type: string
+          description: Specific commit SHA
+
+    TemplateWorkspaceSource:
+      type: object
+      required:
+        - type
+        - templateId
+      properties:
+        type:
+          type: string
+          enum: [template]
+        templateId:
+          type: string
+          description: Template ID to use
+        variables:
+          type: object
+          description: Template variables
+
+    TenantContext:
+      type: object
+      properties:
+        tenantId:
+          type: string
+          description: Tenant organization identifier
+        tenantUserId:
+          type: string
+          description: End user identifier
+        metadata:
+          type: object
+          description: Custom metadata
+
+    WorkOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Work order ID
+        taskPrompt:
+          type: string
+          description: Task description
+        workspaceSource:
+          $ref: '#/components/schemas/WorkspaceSource'
+        runId:
+          type: string
+          description: Associated run ID
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, cancelled]
+        maxIterations:
+          type: integer
+          description: Maximum iterations
+        tenantContext:
+          $ref: '#/components/schemas/TenantContext'
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    Run:
+      type: object
+      properties:
+        id:
+          type: string
+        workOrderId:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed, cancelled]
+        iterations:
+          type: integer
+        prUrl:
+          type: string
+        timing:
+          type: object
+          properties:
+            startedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+            durationMs:
+              type: integer
+        cost:
+          type: object
+          properties:
+            credits:
+              type: integer
+        tenantContext:
+          $ref: '#/components/schemas/TenantContext'
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    CreditBalance:
+      type: object
+      properties:
+        includedCreditsCents:
+          type: integer
+        purchasedCreditsCents:
+          type: integer
+        totalCreditsCents:
+          type: integer
+        billingCycleStart:
+          type: string
+          format: date-time
+        billingCycleEnd:
+          type: string
+          format: date-time
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        source:
+          type: object
+        variables:
+          type: array
+        builtIn:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+tags:
+  - name: Work Orders
+    description: Submit and manage AI automation tasks
+  - name: Runs
+    description: Monitor and retrieve run status and results
+  - name: Credits
+    description: Check balances and manage credit usage
+  - name: Webhooks
+    description: Configure webhook subscriptions
+  - name: Templates
+    description: Manage workspace templates
+
+paths:
+  /v1/work-orders:
+    post:
+      tags: [Work Orders]
+      summary: Create Work Order
+      description: Create a new work order to execute an automated task
+      operationId: createWorkOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - taskPrompt
+                - workspaceSource
+              properties:
+                taskPrompt:
+                  type: string
+                  description: Description of the task
+                workspaceSource:
+                  $ref: '#/components/schemas/WorkspaceSource'
+                maxIterations:
+                  type: integer
+                  default: 10
+                gatePlan:
+                  type: object
+                webhookUrl:
+                  type: string
+                tenantContext:
+                  $ref: '#/components/schemas/TenantContext'
+                metadata:
+                  type: object
+      responses:
+        '201':
+          description: Work order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workOrderId:
+                    type: string
+                  runId:
+                    type: string
+                  status:
+                    type: string
+                  createdAt:
+                    type: string
+        '402':
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/work-orders/{id}:
+    get:
+      tags: [Work Orders]
+      summary: Get Work Order
+      operationId: getWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Work order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrder'
+
+  /v1/runs:
+    get:
+      tags: [Runs]
+      summary: List Runs
+      operationId: listRuns
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Run'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+  /v1/runs/{id}:
+    get:
+      tags: [Runs]
+      summary: Get Run
+      operationId: getRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+
+  /v1/runs/{id}/cancel:
+    post:
+      tags: [Runs]
+      summary: Cancel Run
+      operationId: cancelRun
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  cancelledAt:
+                    type: string
+
+  /v1/credits:
+    get:
+      tags: [Credits]
+      summary: Get Credit Balance
+      operationId: getCreditBalance
+      responses:
+        '200':
+          description: Credit balance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditBalance'
+
+  /v1/credits/usage:
+    get:
+      tags: [Credits]
+      summary: Get Usage History
+      operationId: getCreditUsage
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          schema:
+            type: string
+        - name: tenantId
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Usage history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                  total:
+                    type: integer
+
+  /v1/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List Webhooks
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+    post:
+      tags: [Webhooks]
+      summary: Create Webhook
+      operationId: createWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - events
+              properties:
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+                enabled:
+                  type: boolean
+                  default: true
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/Webhook'
+                  secret:
+                    type: string
+                    description: Webhook secret (only shown once)
+
+  /v1/webhooks/{id}:
+    get:
+      tags: [Webhooks]
+      summary: Get Webhook
+      operationId: getWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Webhook details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    patch:
+      tags: [Webhooks]
+      summary: Update Webhook
+      operationId: updateWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: string
+                enabled:
+                  type: boolean
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+    delete:
+      tags: [Webhooks]
+      summary: Delete Webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Webhook deleted
+
+  /v1/webhooks/{id}/test:
+    post:
+      tags: [Webhooks]
+      summary: Test Webhook
+      operationId: testWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  statusCode:
+                    type: integer
+                  responseTime:
+                    type: integer
+                  error:
+                    type: string
+
+  /v1/templates:
+    get:
+      tags: [Templates]
+      summary: List Templates
+      operationId: listTemplates
+      parameters:
+        - name: includeBuiltIn
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+    post:
+      tags: [Templates]
+      summary: Create Template
+      operationId: createTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+                - name
+                - source
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                source:
+                  type: object
+                variables:
+                  type: array
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+
+  /v1/templates/{id}:
+    get:
+      tags: [Templates]
+      summary: Get Template
+      operationId: getTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+    put:
+      tags: [Templates]
+      summary: Update Template
+      operationId: updateTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                source:
+                  type: object
+                variables:
+                  type: array
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+    delete:
+      tags: [Templates]
+      summary: Delete Template
+      operationId: deleteTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Template deleted

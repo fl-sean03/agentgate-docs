@@ -1,0 +1,51 @@
+---
+title: Cancel Run
+api: POST /v1/runs/{id}/cancel
+description: Cancel a running or pending run
+---
+
+<ParamField path="id" type="string" required>
+  Run ID to cancel (format: `run_xxxxx`).
+</ParamField>
+
+<ResponseField name="id" type="string">
+  Run identifier.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  New status (will be `cancelled`).
+</ResponseField>
+
+<ResponseField name="cancelledAt" type="string">
+  ISO 8601 timestamp of cancellation.
+</ResponseField>
+
+<Note>
+  Only runs in `pending` or `running` status can be cancelled.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/runs/run_abc123/cancel \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "run_abc123",
+  "status": "cancelled",
+  "cancelledAt": "2024-01-15T10:32:00Z"
+}
+```
+
+```json 400
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Cannot cancel run with status 'succeeded'"
+  }
+}
+```
+</ResponseExample>

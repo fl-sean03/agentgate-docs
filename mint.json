@@ -1,0 +1,175 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "AgentGate",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5",
+    "anchors": {
+      "from": "#6366F1",
+      "to": "#8B5CF6"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Dashboard",
+      "url": "https://agentgate.mynewapi.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://agentgate.mynewapi.com/signup"
+  },
+  "tabs": [
+    {
+      "name": "Documentation",
+      "url": "/"
+    },
+    {
+      "name": "API Reference",
+      "url": "/api-reference"
+    },
+    {
+      "name": "SDKs",
+      "url": "/sdks"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/fl-sean03/agentgate"
+    },
+    {
+      "name": "Status",
+      "icon": "signal-bars",
+      "url": "https://status.agentgate.mynewapi.com"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "authentication"
+      ]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/work-orders",
+        "concepts/runs",
+        "concepts/iterations",
+        "concepts/workspaces"
+      ]
+    },
+    {
+      "group": "B2B Integration",
+      "pages": [
+        "b2b/tenant-context",
+        "b2b/credits",
+        "b2b/webhooks",
+        "b2b/templates"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/integration-patterns",
+        "guides/best-practices",
+        "guides/error-handling"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/error-codes",
+        "reference/rate-limits",
+        "reference/glossary"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview"
+      ]
+    },
+    {
+      "group": "Work Orders",
+      "pages": [
+        "api-reference/work-orders/create",
+        "api-reference/work-orders/get"
+      ]
+    },
+    {
+      "group": "Runs",
+      "pages": [
+        "api-reference/runs/list",
+        "api-reference/runs/get",
+        "api-reference/runs/cancel"
+      ]
+    },
+    {
+      "group": "Credits",
+      "pages": [
+        "api-reference/credits/balance",
+        "api-reference/credits/usage"
+      ]
+    },
+    {
+      "group": "Webhooks",
+      "pages": [
+        "api-reference/webhooks/list",
+        "api-reference/webhooks/create",
+        "api-reference/webhooks/get",
+        "api-reference/webhooks/update",
+        "api-reference/webhooks/delete",
+        "api-reference/webhooks/test"
+      ]
+    },
+    {
+      "group": "Templates",
+      "pages": [
+        "api-reference/templates/list",
+        "api-reference/templates/create",
+        "api-reference/templates/get",
+        "api-reference/templates/update",
+        "api-reference/templates/delete"
+      ]
+    },
+    {
+      "group": "SDKs",
+      "pages": [
+        "sdks/overview",
+        "sdks/typescript",
+        "sdks/python"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/fl-sean03/agentgate",
+    "twitter": "https://twitter.com/agentgate"
+  },
+  "api": {
+    "baseUrl": "https://api.agentgate.mynewapi.com",
+    "auth": {
+      "method": "bearer"
+    }
+  },
+  "openapi": "/openapi.yaml",
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
+  },
+  "analytics": {
+    "posthog": {
+      "apiKey": ""
+    }
+  }
+}

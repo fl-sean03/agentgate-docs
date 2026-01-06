@@ -1,0 +1,49 @@
+---
+title: Get Template
+api: GET /v1/templates/{id}
+description: Get template details
+---
+
+<ParamField path="id" type="string" required>
+  Template ID.
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "our-api-template",
+  "name": "Our API Template",
+  "description": "Standard API template with our conventions",
+  "source": {
+    "type": "git",
+    "repository": "https://github.com/our-org/api-template",
+    "branch": "main"
+  },
+  "variables": [
+    {
+      "name": "serviceName",
+      "description": "Name of the service",
+      "required": true
+    },
+    {
+      "name": "team",
+      "description": "Owning team",
+      "default": "platform"
+    }
+  ],
+  "hooks": {
+    "postCreate": ["npm install"]
+  },
+  "tags": ["api", "internal"],
+  "builtIn": false,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+</ResponseExample>

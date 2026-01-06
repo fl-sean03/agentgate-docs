@@ -1,0 +1,68 @@
+---
+title: List Runs
+api: GET /v1/runs
+description: List runs with optional filtering
+---
+
+<ParamField query="status" type="string">
+  Filter by status: `pending`, `running`, `succeeded`, `failed`, `cancelled`.
+</ParamField>
+
+<ParamField query="tenantId" type="string">
+  Filter by tenant ID.
+</ParamField>
+
+<ParamField query="tenantUserId" type="string">
+  Filter by tenant user ID.
+</ParamField>
+
+<ParamField query="limit" type="integer" default={20}>
+  Results per page (max 100).
+</ParamField>
+
+<ParamField query="offset" type="integer" default={0}>
+  Number of results to skip.
+</ParamField>
+
+<ResponseField name="data" type="array">
+  Array of run objects.
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of matching runs.
+</ResponseField>
+
+<ResponseField name="limit" type="integer">
+  Current limit value.
+</ResponseField>
+
+<ResponseField name="offset" type="integer">
+  Current offset value.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.agentgate.mynewapi.com/v1/runs?status=succeeded&limit=10" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "data": [
+    {
+      "id": "run_abc123",
+      "workOrderId": "wo_xyz789",
+      "status": "succeeded",
+      "iterations": 3,
+      "createdAt": "2024-01-15T10:30:00Z",
+      "completedAt": "2024-01-15T10:35:00Z"
+    }
+  ],
+  "total": 42,
+  "limit": 10,
+  "offset": 0
+}
+```
+</ResponseExample>

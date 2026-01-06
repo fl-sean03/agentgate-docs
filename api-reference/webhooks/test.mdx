@@ -1,0 +1,51 @@
+---
+title: Test Webhook
+api: POST /v1/webhooks/{id}/test
+description: Send a test event to verify webhook configuration
+---
+
+<ParamField path="id" type="string" required>
+  Webhook ID to test.
+</ParamField>
+
+<ResponseField name="success" type="boolean">
+  Whether the test delivery succeeded.
+</ResponseField>
+
+<ResponseField name="statusCode" type="integer">
+  HTTP status code returned by your endpoint.
+</ResponseField>
+
+<ResponseField name="responseTime" type="integer">
+  Response time in milliseconds.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if delivery failed.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123/test \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "success": true,
+  "statusCode": 200,
+  "responseTime": 150
+}
+```
+
+```json 200
+{
+  "success": false,
+  "statusCode": 500,
+  "responseTime": 1200,
+  "error": "Endpoint returned 500 Internal Server Error"
+}
+```
+</ResponseExample>

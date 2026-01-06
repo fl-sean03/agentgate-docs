@@ -1,0 +1,330 @@
+---
+title: Credits
+description: "Understanding and managing credits for API usage"
+---
+
+# Credits
+
+AgentGate uses a credit-based billing system. This page explains how credits work, how to check balances, and how to manage usage.
+
+## How Credits Work
+
+Credits are the unit of payment for AgentGate usage:
+
+- **Runs consume credits**: Each run deducts credits based on complexity
+- **Credits are prepaid**: You purchase or receive credits before use
+- **Two credit types**: Included credits (with your plan) and purchased credits
+
+### Credit Types
+
+| Type | Description | Expiration |
+|------|-------------|------------|
+| **Included** | Monthly allocation with your plan | Reset monthly |
+| **Purchased** | One-time purchases | Never expire |
+
+### Deduction Priority
+
+When runs complete, credits are deducted in this order:
+
+1. Included credits (use first, reset monthly)
+2. Purchased credits (use after included depleted)
+
+## Credit Balance
+
+### Checking Balance
+
+Get your current credit balance:
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/credits \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```typescript TypeScript SDK
+const balance = await client.credits.getBalance();
+
+console.log('Included:', balance.includedCreditsCents);
+console.log('Purchased:', balance.purchasedCreditsCents);
+console.log('Total:', balance.totalCreditsCents);
+```
+
+</CodeGroup>
+
+Response:
+
+```json
+{
+  "includedCreditsCents": 5000,
+  "purchasedCreditsCents": 2500,
+  "totalCreditsCents": 7500,
+  "billingCycleStart": "2024-01-01T00:00:00Z",
+  "billingCycleEnd": "2024-01-31T23:59:59Z"
+}
+```
+
+### Balance Fields
+
+| Field | Description |
+|-------|-------------|
+| `includedCreditsCents` | Remaining monthly included credits |
+| `purchasedCreditsCents` | Remaining purchased credits |
+| `totalCreditsCents` | Combined available balance |
+| `billingCycleStart` | When included credits reset |
+| `billingCycleEnd` | End of current billing cycle |
+
+## Credit Deductions
+
+### When Credits Are Charged
+
+Credits are deducted when a run completes:
+
+- **Succeeded runs**: Full cost charged
+- **Failed runs**: Partial cost for completed iterations
+- **Cancelled runs**: Cost for iterations before cancellation
+
+### What Determines Cost
+
+Run cost depends on:
+
+| Factor | Impact |
+|--------|--------|
+| Iterations | More iterations = higher cost |
+| Verification level | Higher levels cost more |
+| Workspace complexity | Larger workspaces cost more |
+| Duration | Longer runs cost more |
+
+### Viewing Run Costs
+
+Check cost in run results:
+
+```json
+{
+  "id": "run_abc123",
+  "status": "succeeded",
+  "cost": {
+    "credits": 150,
+    "breakdown": {
+      "iterations": 100,
+      "verification": 30,
+      "workspace": 20
+    }
+  }
+}
+```
+
+## Usage History
+
+### Querying Usage
+
+Get transaction history:
+
+<CodeGroup>
+
+```bash cURL
+curl "https://api.agentgate.mynewapi.com/v1/credits/usage?startDate=2024-01-01" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```typescript TypeScript SDK
+const usage = await client.credits.getUsage({
+  startDate: '2024-01-01',
+  endDate: '2024-01-31'
+});
+```
+
+</CodeGroup>
+
+Response:
+
+```json
+{
+  "transactions": [
+    {
+      "id": "txn_123",
+      "type": "deduction",
+      "amount": 150,
+      "runId": "run_abc123",
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_456",
+      "createdAt": "2024-01-15T10:35:00Z"
+    },
+    {
+      "id": "txn_122",
+      "type": "purchase",
+      "amount": 10000,
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 15000,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Filtering Usage
+
+| Parameter | Description |
+|-----------|-------------|
+| `startDate` | Filter from date (ISO 8601) |
+| `endDate` | Filter to date (ISO 8601) |
+| `tenantId` | Filter by tenant |
+| `tenantUserId` | Filter by tenant user |
+| `type` | Filter by transaction type |
+| `limit` | Results per page |
+| `offset` | Pagination offset |
+
+### Usage by Tenant
+
+Track usage per tenant for billing:
+
+```bash
+curl "https://api.agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp&startDate=2024-01-01" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Credit Estimation
+
+### Before Submitting
+
+While exact costs can't be predicted, estimate based on:
+
+| Task Type | Typical Range |
+|-----------|---------------|
+| Simple changes | 50-100 credits |
+| Medium complexity | 100-300 credits |
+| Complex tasks | 300-1000 credits |
+
+<Note>
+  Actual costs depend on iterations needed and verification complexity.
+</Note>
+
+### Insufficient Credits
+
+If balance is insufficient:
+
+- Work order submission returns `402 Payment Required`
+- Error includes required vs available credits
+- Purchase credits or wait for monthly reset
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_CREDITS",
+    "message": "Insufficient credits",
+    "details": {
+      "required": 500,
+      "available": 200
+    }
+  }
+}
+```
+
+## Billing Integration
+
+### Passing Costs to Customers
+
+Use tenant context and usage API for billing integration:
+
+```typescript
+async function billTenant(tenantId: string, period: DateRange) {
+  // Get tenant's usage
+  const usage = await client.credits.getUsage({
+    tenantId,
+    startDate: period.start,
+    endDate: period.end
+  });
+
+  // Calculate cost with your margin
+  const totalCredits = usage.transactions
+    .filter(t => t.type === 'deduction')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const costCents = totalCredits * CREDIT_PRICE_CENTS;
+  const billableAmount = costCents * (1 + MARGIN_PERCENT);
+
+  // Create invoice
+  return createInvoice(tenantId, billableAmount);
+}
+```
+
+### Stripe Integration Pattern
+
+```typescript
+// When run completes via webhook
+app.post('/webhooks/agentgate', async (req, res) => {
+  const { type, data } = req.body;
+
+  if (type === 'run.completed') {
+    const { tenantContext, cost } = data;
+
+    // Record usage in Stripe
+    await stripe.subscriptionItems.createUsageRecord(
+      tenantContext.stripeSubscriptionItemId,
+      {
+        quantity: cost.credits,
+        timestamp: Math.floor(Date.now() / 1000),
+        action: 'increment'
+      }
+    );
+  }
+
+  res.sendStatus(200);
+});
+```
+
+## Cost Optimization
+
+### Strategies
+
+<AccordionGroup>
+  <Accordion title="Write Clear Prompts">
+    Specific prompts converge faster, reducing iterations and cost.
+  </Accordion>
+
+  <Accordion title="Use Appropriate Verification">
+    Don't use L3 verification for quick prototypes. Match verification to needs.
+  </Accordion>
+
+  <Accordion title="Set Iteration Limits">
+    Set reasonable `maxIterations` to cap costs per run.
+  </Accordion>
+
+  <Accordion title="Break Down Complex Tasks">
+    Multiple smaller work orders often cost less than one complex one.
+  </Accordion>
+</AccordionGroup>
+
+### Monitoring Usage
+
+Set up monitoring for credit usage:
+
+```typescript
+// Check balance periodically
+async function monitorCredits() {
+  const balance = await client.credits.getBalance();
+
+  // Alert if below threshold
+  if (balance.totalCreditsCents < LOW_BALANCE_THRESHOLD) {
+    sendAlert('Credit balance low', balance);
+  }
+
+  // Alert if usage spike
+  const todayUsage = await getTodayUsage();
+  if (todayUsage > DAILY_USAGE_ALERT) {
+    sendAlert('Unusual usage spike', todayUsage);
+  }
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Tenant Context" icon="building" href="/b2b/tenant-context">
+    Attribute usage to tenants
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/credits/balance">
+    Credits API endpoints
+  </Card>
+</CardGroup>

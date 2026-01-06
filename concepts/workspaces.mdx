@@ -1,0 +1,262 @@
+---
+title: Workspaces
+description: "Understanding workspaces - isolated execution environments"
+---
+
+# Workspaces
+
+Workspaces are isolated environments where AgentGate executes work orders. Each run gets its own workspace, ensuring security and reproducibility.
+
+## What Is a Workspace
+
+A workspace is:
+
+- **Isolated**: Separate from other runs and your production systems
+- **Temporary**: Created for the run, destroyed after completion
+- **Configured**: Set up from your workspace source (repo, template, URL)
+- **Secure**: Sandboxed with limited network and resource access
+
+## Workspace Sources
+
+### Git Repositories
+
+Clone from Git providers:
+
+```json
+{
+  "workspaceSource": {
+    "type": "git",
+    "repository": "https://github.com/your-org/your-repo",
+    "branch": "main",
+    "commit": "abc123"  // Optional: specific commit
+  }
+}
+```
+
+**Supported providers:**
+- GitHub
+- GitLab
+- Bitbucket
+- Any Git URL
+
+**Private repositories** require authentication configured in your organization settings.
+
+### Templates
+
+Start from pre-configured templates:
+
+```json
+{
+  "workspaceSource": {
+    "type": "template",
+    "templateId": "node-typescript-api",
+    "variables": {
+      "projectName": "my-project",
+      "author": "Your Name"
+    }
+  }
+}
+```
+
+Templates provide:
+- Standard project structures
+- Pre-installed dependencies
+- Configured tooling
+- Best practice setups
+
+See [Templates](/b2b/templates) for available templates and creating custom ones.
+
+### URL Sources
+
+Fetch from a URL:
+
+```json
+{
+  "workspaceSource": {
+    "type": "url",
+    "url": "https://example.com/project.tar.gz",
+    "format": "tar.gz"
+  }
+}
+```
+
+**Supported formats:**
+- `.zip`
+- `.tar.gz`
+- `.tar`
+
+## Workspace Lifecycle
+
+<Steps>
+  <Step title="Creation">
+    Workspace is created from the specified source. Files are downloaded/cloned.
+  </Step>
+  <Step title="Setup">
+    Dependencies are installed based on detected project type (npm install, pip install, etc.).
+  </Step>
+  <Step title="Execution">
+    AI agent runs within the workspace, making changes to files.
+  </Step>
+  <Step title="Verification">
+    Tests and checks run against the modified workspace.
+  </Step>
+  <Step title="Artifact Collection">
+    Results, diffs, and outputs are collected.
+  </Step>
+  <Step title="Cleanup">
+    Workspace is destroyed. Only artifacts persist.
+  </Step>
+</Steps>
+
+## Workspace Isolation
+
+### Security Model
+
+Each workspace is isolated:
+
+| Aspect | Restriction |
+|--------|-------------|
+| File system | Cannot access host or other workspaces |
+| Network | Limited outbound access (configurable) |
+| Resources | CPU and memory limits applied |
+| Time | Maximum execution duration |
+
+### Resource Limits
+
+Default limits per workspace:
+
+- **CPU**: 2 cores
+- **Memory**: 4 GB
+- **Disk**: 10 GB
+- **Duration**: 30 minutes
+
+<Note>
+  Enterprise plans may have higher limits. Contact support for custom configurations.
+</Note>
+
+### Network Access
+
+By default, workspaces can access:
+- Package registries (npm, PyPI, etc.)
+- Git providers for dependencies
+- Configured external APIs
+
+They cannot access:
+- Your internal networks
+- Other AgentGate workspaces
+- Unrestricted internet
+
+## Git Workspace Configuration
+
+### Branch Selection
+
+Specify the branch to clone:
+
+```json
+{
+  "workspaceSource": {
+    "type": "git",
+    "repository": "https://github.com/org/repo",
+    "branch": "feature-branch"
+  }
+}
+```
+
+### Specific Commit
+
+Pin to a specific commit for reproducibility:
+
+```json
+{
+  "workspaceSource": {
+    "type": "git",
+    "repository": "https://github.com/org/repo",
+    "commit": "a1b2c3d4e5f6"
+  }
+}
+```
+
+### Shallow Clone
+
+For large repositories, shallow clones are used by default (last 100 commits).
+
+### Private Repository Access
+
+For private repositories, configure credentials in your organization:
+
+1. Go to **Settings** → **Integrations**
+2. Connect your Git provider (GitHub, GitLab, etc.)
+3. Grant access to required repositories
+
+## Workspace Outputs
+
+After execution, workspaces produce:
+
+### Diffs
+
+Changes made to files:
+
+```diff
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -10,6 +10,10 @@ export function formatDate(date: Date) {
++export function parseDate(str: string): Date {
++  return new Date(str);
++}
+```
+
+### Pull Requests
+
+For Git sources, AgentGate can create PRs:
+
+```json
+{
+  "prUrl": "https://github.com/org/repo/pull/42",
+  "prBranch": "agentgate/run_abc123"
+}
+```
+
+### Artifacts
+
+Collected outputs like:
+- Test results
+- Coverage reports
+- Build artifacts
+- Logs
+
+## Best Practices
+
+### Repository Size
+
+<Tip>
+  Keep workspace sources focused. Large repositories take longer to clone and may hit size limits.
+</Tip>
+
+Consider:
+- Using sparse checkouts for monorepos
+- Excluding large binary files
+- Using templates for common setups
+
+### Dependencies
+
+- Use lock files (package-lock.json, poetry.lock)
+- Pin dependency versions for reproducibility
+- Include necessary dev dependencies
+
+### Configuration
+
+Ensure your workspace has:
+- Test configuration that works headlessly
+- Build scripts that don't require user input
+- Environment variables documented
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="copy" href="/b2b/templates">
+    Use and create workspace templates
+  </Card>
+  <Card title="Work Orders" icon="file-lines" href="/concepts/work-orders">
+    Configure workspace sources in work orders
+  </Card>
+</CardGroup>

@@ -1,0 +1,94 @@
+---
+title: Create Template
+api: POST /v1/templates
+description: Create an organization template
+---
+
+<ParamField body="id" type="string" required>
+  Unique template identifier (lowercase, hyphens allowed).
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Human-readable template name.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Template description.
+</ParamField>
+
+<ParamField body="source" type="object" required>
+  Template source configuration.
+</ParamField>
+
+<ParamField body="variables" type="array">
+  Variable definitions for customization.
+</ParamField>
+
+<ParamField body="hooks" type="object">
+  Lifecycle hooks (postCreate, etc.).
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Tags for filtering.
+</ParamField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/templates \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "our-api-template",
+    "name": "Our API Template",
+    "description": "Standard API template with our conventions",
+    "source": {
+      "type": "git",
+      "repository": "https://github.com/our-org/api-template",
+      "branch": "main"
+    },
+    "variables": [
+      {
+        "name": "serviceName",
+        "description": "Name of the service",
+        "required": true
+      },
+      {
+        "name": "team",
+        "description": "Owning team",
+        "default": "platform"
+      }
+    ],
+    "tags": ["api", "internal"]
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "id": "our-api-template",
+  "name": "Our API Template",
+  "description": "Standard API template with our conventions",
+  "source": {
+    "type": "git",
+    "repository": "https://github.com/our-org/api-template",
+    "branch": "main"
+  },
+  "variables": [
+    {
+      "name": "serviceName",
+      "description": "Name of the service",
+      "required": true
+    },
+    {
+      "name": "team",
+      "description": "Owning team",
+      "default": "platform"
+    }
+  ],
+  "tags": ["api", "internal"],
+  "builtIn": false,
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+</ResponseExample>

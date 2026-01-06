@@ -1,0 +1,417 @@
+---
+title: Webhooks
+description: "Real-time notifications for run events"
+---
+
+# Webhooks
+
+Webhooks notify your application when events occur in AgentGate. Instead of polling for status, receive push notifications when runs complete.
+
+## Why Use Webhooks
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Polling** | Simple to implement | Wastes API calls, delays |
+| **Webhooks** | Real-time, efficient | Requires endpoint setup |
+
+<Tip>
+  For production integrations, always use webhooks instead of polling.
+</Tip>
+
+## Setting Up Webhooks
+
+### Create a Webhook
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/webhooks \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.com/webhooks/agentgate",
+    "events": ["run.completed", "run.failed"],
+    "description": "Production webhook"
+  }'
+```
+
+```typescript TypeScript SDK
+const webhook = await client.webhooks.create({
+  url: "https://your-app.com/webhooks/agentgate",
+  events: ["run.completed", "run.failed"],
+  description: "Production webhook"
+});
+
+// IMPORTANT: Save the secret immediately
+console.log('Webhook Secret:', webhook.secret);
+```
+
+</CodeGroup>
+
+Response:
+
+```json
+{
+  "webhook": {
+    "id": "wh_abc123",
+    "url": "https://your-app.com/webhooks/agentgate",
+    "events": ["run.completed", "run.failed"],
+    "enabled": true,
+    "description": "Production webhook"
+  },
+  "secret": "whsec_xxxxxxxxxxxxxxxxxxxxxxxx"
+}
+```
+
+<Warning>
+  The webhook secret is only shown once at creation. Store it securely—you'll need it for signature verification.
+</Warning>
+
+### Endpoint Requirements
+
+Your webhook endpoint must:
+
+- Use HTTPS (HTTP not allowed)
+- Be publicly accessible
+- Respond within 30 seconds
+- Return a 2xx status code for success
+
+## Event Types
+
+### Run Events
+
+| Event | Description |
+|-------|-------------|
+| `run.created` | New run created from work order |
+| `run.started` | Run execution began |
+| `run.completed` | Run finished successfully |
+| `run.failed` | Run terminated with failure |
+| `run.cancelled` | Run cancelled by user |
+
+### Verification Events
+
+| Event | Description |
+|-------|-------------|
+| `verification.started` | Verification phase began |
+| `verification.passed` | Verification checks passed |
+| `verification.failed` | Verification checks failed |
+
+### Common Subscriptions
+
+```json
+// Basic: Just completion status
+["run.completed", "run.failed"]
+
+// Progress tracking
+["run.started", "run.completed", "run.failed", "run.cancelled"]
+
+// Full monitoring
+["run.created", "run.started", "run.completed", "run.failed",
+ "verification.started", "verification.passed", "verification.failed"]
+```
+
+## Payload Format
+
+All webhooks follow this structure:
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "run.completed",
+  "timestamp": "2024-01-15T10:35:00Z",
+  "data": {
+    // Event-specific data
+  }
+}
+```
+
+### run.completed Payload
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "run.completed",
+  "timestamp": "2024-01-15T10:35:00Z",
+  "data": {
+    "runId": "run_xyz789",
+    "workOrderId": "wo_def456",
+    "status": "succeeded",
+    "iterations": 3,
+    "prUrl": "https://github.com/org/repo/pull/42",
+    "timing": {
+      "startedAt": "2024-01-15T10:30:00Z",
+      "completedAt": "2024-01-15T10:35:00Z",
+      "durationMs": 300000
+    },
+    "cost": {
+      "credits": 150
+    },
+    "tenantContext": {
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_123"
+    }
+  }
+}
+```
+
+### run.failed Payload
+
+```json
+{
+  "id": "evt_abc124",
+  "type": "run.failed",
+  "timestamp": "2024-01-15T10:35:00Z",
+  "data": {
+    "runId": "run_xyz789",
+    "workOrderId": "wo_def456",
+    "status": "failed",
+    "iterations": 10,
+    "error": {
+      "code": "MAX_ITERATIONS_REACHED",
+      "message": "Run did not converge within maximum iterations"
+    },
+    "tenantContext": {
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_123"
+    }
+  }
+}
+```
+
+## Signature Verification
+
+Always verify webhook signatures to ensure authenticity.
+
+### Signature Header
+
+Webhooks include an `X-AgentGate-Signature` header:
+
+```
+X-AgentGate-Signature: sha256=abc123...
+```
+
+### Verification Process
+
+<Steps>
+  <Step title="Get Raw Body">
+    Access the raw request body before JSON parsing.
+  </Step>
+  <Step title="Compute HMAC">
+    Calculate HMAC-SHA256 of the body using your webhook secret.
+  </Step>
+  <Step title="Compare Signatures">
+    Use constant-time comparison to match computed vs received signature.
+  </Step>
+</Steps>
+
+### Verification Code
+
+<CodeGroup>
+
+```typescript Node.js/Express
+import crypto from 'crypto';
+import express from 'express';
+
+const app = express();
+
+// Use raw body for signature verification
+app.use('/webhooks/agentgate', express.raw({ type: 'application/json' }));
+
+app.post('/webhooks/agentgate', (req, res) => {
+  const signature = req.headers['x-agentgate-signature'];
+  const body = req.body;
+
+  // Verify signature
+  const expectedSignature = 'sha256=' + crypto
+    .createHmac('sha256', process.env.WEBHOOK_SECRET)
+    .update(body)
+    .digest('hex');
+
+  if (!crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  )) {
+    return res.status(401).send('Invalid signature');
+  }
+
+  // Process webhook
+  const event = JSON.parse(body.toString());
+  console.log('Received:', event.type);
+
+  res.sendStatus(200);
+});
+```
+
+```python Python/Flask
+import hmac
+import hashlib
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+WEBHOOK_SECRET = os.environ['WEBHOOK_SECRET']
+
+@app.route('/webhooks/agentgate', methods=['POST'])
+def handle_webhook():
+    signature = request.headers.get('X-AgentGate-Signature')
+    body = request.get_data()
+
+    # Compute expected signature
+    expected = 'sha256=' + hmac.new(
+        WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256
+    ).hexdigest()
+
+    # Constant-time comparison
+    if not hmac.compare_digest(signature, expected):
+        abort(401)
+
+    # Process webhook
+    event = request.get_json()
+    print(f"Received: {event['type']}")
+
+    return '', 200
+```
+
+</CodeGroup>
+
+## Handling Webhooks
+
+### Best Practices
+
+<AccordionGroup>
+  <Accordion title="Respond Quickly">
+    Return 200 immediately, then process asynchronously:
+
+    ```typescript
+    app.post('/webhooks/agentgate', async (req, res) => {
+      // Acknowledge immediately
+      res.sendStatus(200);
+
+      // Process in background
+      processWebhook(req.body).catch(console.error);
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Implement Idempotency">
+    Handle duplicate deliveries gracefully using the event ID:
+
+    ```typescript
+    async function processWebhook(event) {
+      // Check if already processed
+      if (await isProcessed(event.id)) {
+        return; // Skip duplicate
+      }
+
+      // Process event
+      await handleEvent(event);
+
+      // Mark as processed
+      await markProcessed(event.id);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Use a Queue">
+    For reliability, queue webhooks for processing:
+
+    ```typescript
+    app.post('/webhooks/agentgate', async (req, res) => {
+      await queue.add('agentgate-webhook', req.body);
+      res.sendStatus(200);
+    });
+
+    // Process from queue
+    queue.process('agentgate-webhook', async (job) => {
+      await handleEvent(job.data);
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Retry Behavior
+
+If your endpoint fails, AgentGate retries:
+
+| Attempt | Delay |
+|---------|-------|
+| 1 | Immediate |
+| 2 | 1 minute |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
+
+After 5 failed attempts, the delivery is abandoned.
+
+### What Triggers Retries
+
+- HTTP 4xx responses (except 410)
+- HTTP 5xx responses
+- Connection timeouts
+- Connection refused
+
+### Avoiding Retries
+
+- Return 200/201/204 promptly
+- Return 410 if you want to stop retries
+- Ensure endpoint is accessible
+
+## Testing Webhooks
+
+### Test Endpoint
+
+Send a test event to verify configuration:
+
+```bash
+curl -X POST https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123/test \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Local Development
+
+Use tunneling for local testing:
+
+1. Start a tunnel (ngrok, localtunnel, etc.)
+2. Create a webhook with your tunnel URL
+3. Submit a work order
+4. Receive webhook on localhost
+
+## Managing Webhooks
+
+### List Webhooks
+
+```bash
+curl https://api.agentgate.mynewapi.com/v1/webhooks \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Update Webhook
+
+```bash
+curl -X PATCH https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": ["run.completed", "run.failed", "run.cancelled"],
+    "enabled": true
+  }'
+```
+
+### Delete Webhook
+
+```bash
+curl -X DELETE https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Tenant Context" icon="building" href="/b2b/tenant-context">
+    Include tenant info in webhook payloads
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/webhooks/create">
+    Webhooks API endpoints
+  </Card>
+</CardGroup>

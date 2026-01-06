@@ -1,0 +1,57 @@
+---
+title: Get Webhook
+api: GET /v1/webhooks/{id}
+description: Get webhook configuration details
+---
+
+<ParamField path="id" type="string" required>
+  Webhook ID (format: `wh_xxxxx`).
+</ParamField>
+
+<ResponseField name="id" type="string">
+  Webhook identifier.
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  Webhook URL.
+</ResponseField>
+
+<ResponseField name="events" type="array">
+  Subscribed event types.
+</ResponseField>
+
+<ResponseField name="enabled" type="boolean">
+  Whether webhook is active.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Webhook description.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  Creation timestamp.
+</ResponseField>
+
+<Note>
+  The webhook secret is not included in the response.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "wh_abc123",
+  "url": "https://your-app.com/webhooks/agentgate",
+  "events": ["run.completed", "run.failed"],
+  "enabled": true,
+  "description": "Production webhook",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+</ResponseExample>

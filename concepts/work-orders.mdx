@@ -1,0 +1,188 @@
+---
+title: Work Orders
+description: "Understanding work orders - the primary way to interact with AgentGate"
+---
+
+# Work Orders
+
+Work orders are requests for AgentGate to perform automated tasks. Each work order specifies what to do, where to do it, and how to handle the results.
+
+## What Is a Work Order
+
+A work order is your instruction to AgentGate. Think of it like a detailed task assignment:
+
+- **Task Prompt**: What you want accomplished
+- **Workspace Source**: Where to do the work
+- **Configuration**: How to customize behavior
+- **Tenant Context**: Who this is for (in B2B2C scenarios)
+
+When you submit a work order, AgentGate creates a **run** to execute it.
+
+## Work Order Components
+
+### Task Prompt
+
+The task prompt describes what you want AgentGate to accomplish. This is the most important part of your work order.
+
+```json
+{
+  "taskPrompt": "Add comprehensive error handling to the API routes in src/routes/. Each route should catch errors, log them appropriately, and return standardized error responses."
+}
+```
+
+<Tip>
+  Be specific and provide context. Good prompts include: what to do, where to do it, constraints to follow, and expected outcomes.
+</Tip>
+
+**Effective prompts include:**
+- Clear description of the task
+- Specific files or areas to focus on
+- Coding standards or patterns to follow
+- Expected outcome or acceptance criteria
+
+### Workspace Source
+
+The workspace source defines where AgentGate should perform the work:
+
+<Tabs>
+  <Tab title="Git Repository">
+    Clone from a Git repository:
+
+    ```json
+    {
+      "workspaceSource": {
+        "type": "git",
+        "repository": "https://github.com/your-org/your-repo",
+        "branch": "main"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Template">
+    Start from a template:
+
+    ```json
+    {
+      "workspaceSource": {
+        "type": "template",
+        "templateId": "node-typescript-api"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="URL">
+    Fetch from a URL:
+
+    ```json
+    {
+      "workspaceSource": {
+        "type": "url",
+        "url": "https://example.com/project.zip"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Configuration Options
+
+Customize how your work order executes:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `maxIterations` | number | Maximum iteration attempts (default: 10) |
+| `gatePlan` | string | Verification level configuration |
+| `webhookUrl` | string | URL for completion notification |
+| `metadata` | object | Custom key-value data |
+
+```json
+{
+  "taskPrompt": "...",
+  "workspaceSource": { "..." },
+  "maxIterations": 5,
+  "webhookUrl": "https://your-app.com/webhooks/agentgate",
+  "metadata": {
+    "ticketId": "PROJ-123",
+    "priority": "high"
+  }
+}
+```
+
+## Work Order Lifecycle
+
+<Steps>
+  <Step title="Submission">
+    You submit the work order via API. AgentGate validates the request.
+  </Step>
+  <Step title="Validation">
+    AgentGate checks the workspace source is accessible and the request is well-formed.
+  </Step>
+  <Step title="Queuing">
+    A run is created and queued for execution.
+  </Step>
+  <Step title="Execution">
+    The run executes, iterating until completion or limit reached.
+  </Step>
+  <Step title="Completion">
+    Results are available and webhooks are fired.
+  </Step>
+</Steps>
+
+## Response Structure
+
+When you create a work order, you receive:
+
+```json
+{
+  "workOrderId": "wo_abc123xyz",
+  "runId": "run_def456uvw",
+  "status": "pending",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `workOrderId` | Unique identifier for the work order |
+| `runId` | Unique identifier for the created run |
+| `status` | Initial status (always `pending`) |
+| `createdAt` | Timestamp of creation |
+
+## Best Practices
+
+### Writing Effective Task Prompts
+
+<AccordionGroup>
+  <Accordion title="Be Specific">
+    Instead of "fix the bug", say "fix the null pointer exception in UserService.getUser() that occurs when the user ID doesn't exist in the database".
+  </Accordion>
+
+  <Accordion title="Provide Context">
+    Include relevant background: "This is a Node.js Express API using TypeScript. We follow the repository pattern for data access."
+  </Accordion>
+
+  <Accordion title="Define Acceptance Criteria">
+    State what success looks like: "The function should return an empty array instead of throwing an error when no results are found."
+  </Accordion>
+
+  <Accordion title="Specify Constraints">
+    Mention limitations: "Do not modify the database schema. Use existing utility functions where available."
+  </Accordion>
+</AccordionGroup>
+
+### Choosing Workspace Sources
+
+- **Git repositories**: Best for existing projects with history
+- **Templates**: Best for new projects or standardized setups
+- **URLs**: Best for one-off tasks or external sources
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Runs" icon="play" href="/concepts/runs">
+    Learn about run lifecycle and monitoring
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/work-orders/create">
+    Create Work Order endpoint
+  </Card>
+</CardGroup>

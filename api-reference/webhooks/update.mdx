@@ -1,0 +1,55 @@
+---
+title: Update Webhook
+api: PATCH /v1/webhooks/{id}
+description: Update webhook configuration
+---
+
+<ParamField path="id" type="string" required>
+  Webhook ID to update.
+</ParamField>
+
+<ParamField body="url" type="string">
+  New webhook URL.
+</ParamField>
+
+<ParamField body="events" type="array">
+  New event subscription list.
+</ParamField>
+
+<ParamField body="enabled" type="boolean">
+  Enable or disable the webhook.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description.
+</ParamField>
+
+<Note>
+  The webhook secret cannot be changed. To rotate the secret, delete and recreate the webhook.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": ["run.completed", "run.failed", "run.cancelled"],
+    "enabled": true
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "wh_abc123",
+  "url": "https://your-app.com/webhooks/agentgate",
+  "events": ["run.completed", "run.failed", "run.cancelled"],
+  "enabled": true,
+  "description": "Production webhook",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z"
+}
+```
+</ResponseExample>

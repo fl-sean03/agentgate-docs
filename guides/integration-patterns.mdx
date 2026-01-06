@@ -1,0 +1,335 @@
+---
+title: Integration Patterns
+description: "Common patterns for integrating AgentGate into your applications"
+---
+
+# Integration Patterns
+
+This guide covers common patterns for integrating AgentGate into your applications, from simple to production-ready.
+
+## Basic Integration
+
+The simplest integration pattern uses polling to check run status.
+
+### Flow
+
+1. Submit work order
+2. Poll for status
+3. Handle result
+
+### Implementation
+
+```typescript
+async function runTask(taskPrompt: string, repo: string) {
+  // 1. Submit work order
+  const workOrder = await client.workOrders.create({
+    taskPrompt,
+    workspaceSource: { type: 'git', repository: repo }
+  });
+
+  // 2. Poll for status
+  let run;
+  do {
+    await sleep(5000); // Wait 5 seconds
+    run = await client.runs.get(workOrder.runId);
+  } while (run.status === 'pending' || run.status === 'running');
+
+  // 3. Handle result
+  if (run.status === 'succeeded') {
+    return { success: true, prUrl: run.prUrl };
+  } else {
+    return { success: false, error: run.error };
+  }
+}
+```
+
+### When to Use
+
+- Development and testing
+- Simple scripts
+- Low-volume usage
+
+### Limitations
+
+- Wastes API calls
+- Delays between status changes
+- Not scalable
+
+## Webhook-Driven Integration
+
+The recommended pattern for production uses webhooks.
+
+### Flow
+
+1. Submit work order
+2. Return immediately
+3. Receive webhook on completion
+4. Process result asynchronously
+
+### Implementation
+
+```typescript
+// Submit endpoint
+app.post('/api/tasks', async (req, res) => {
+  const workOrder = await client.workOrders.create({
+    taskPrompt: req.body.taskPrompt,
+    workspaceSource: { type: 'git', repository: req.body.repo },
+    webhookUrl: 'https://your-app.com/webhooks/agentgate',
+    metadata: { requestId: generateId() }
+  });
+
+  // Store pending task
+  await db.tasks.create({
+    id: workOrder.metadata.requestId,
+    runId: workOrder.runId,
+    status: 'pending'
+  });
+
+  res.json({ taskId: workOrder.metadata.requestId });
+});
+
+// Webhook endpoint
+app.post('/webhooks/agentgate', async (req, res) => {
+  // Verify signature first
+  if (!verifySignature(req)) {
+    return res.sendStatus(401);
+  }
+
+  // Acknowledge immediately
+  res.sendStatus(200);
+
+  // Process asynchronously
+  const event = req.body;
+  if (event.type === 'run.completed') {
+    await db.tasks.update({
+      where: { runId: event.data.runId },
+      data: {
+        status: 'completed',
+        prUrl: event.data.prUrl
+      }
+    });
+    await notifyUser(event.data);
+  }
+});
+```
+
+### When to Use
+
+- Production applications
+- Any volume of requests
+- Real-time user notifications
+
+## Queue-Based Integration
+
+For high-volume or reliability-critical systems, use a message queue.
+
+### Flow
+
+1. User request → Queue work order job
+2. Worker submits to AgentGate
+3. Webhook → Queue result job
+4. Worker processes result
+
+### Architecture
+
+```
+User Request → Job Queue → Worker → AgentGate
+                                        ↓
+User Notification ← Result Queue ← Webhook
+```
+
+### Implementation
+
+```typescript
+// API: Queue the work order
+app.post('/api/tasks', async (req, res) => {
+  const taskId = generateId();
+
+  await queue.add('submit-work-order', {
+    taskId,
+    taskPrompt: req.body.taskPrompt,
+    repo: req.body.repo
+  });
+
+  res.json({ taskId });
+});
+
+// Worker: Submit to AgentGate
+queue.process('submit-work-order', async (job) => {
+  const workOrder = await client.workOrders.create({
+    taskPrompt: job.data.taskPrompt,
+    workspaceSource: { type: 'git', repository: job.data.repo },
+    metadata: { taskId: job.data.taskId }
+  });
+
+  await db.tasks.update({
+    where: { id: job.data.taskId },
+    data: { runId: workOrder.runId, status: 'running' }
+  });
+});
+
+// Webhook: Queue the result
+app.post('/webhooks/agentgate', async (req, res) => {
+  res.sendStatus(200);
+  await queue.add('process-result', req.body);
+});
+
+// Worker: Process result
+queue.process('process-result', async (job) => {
+  const event = job.data;
+
+  if (event.type === 'run.completed') {
+    const task = await db.tasks.findByRunId(event.data.runId);
+    await db.tasks.update({
+      where: { id: task.id },
+      data: { status: 'completed', result: event.data }
+    });
+    await sendNotification(task.userId, 'Task completed!');
+  }
+});
+```
+
+### When to Use
+
+- High-volume applications
+- Reliability-critical systems
+- Complex workflows
+- Multiple downstream systems
+
+## Multi-Tenant Integration
+
+For B2B2C platforms serving multiple customers.
+
+### Flow
+
+1. Identify tenant from request
+2. Include tenant context in work order
+3. Route webhook to tenant
+4. Attribute usage to tenant
+
+### Implementation
+
+```typescript
+// API: Include tenant context
+app.post('/api/tasks', authenticateTenant, async (req, res) => {
+  const tenant = req.tenant; // From auth middleware
+
+  const workOrder = await client.workOrders.create({
+    taskPrompt: req.body.taskPrompt,
+    workspaceSource: { type: 'git', repository: req.body.repo },
+    tenantContext: {
+      tenantId: tenant.id,
+      tenantUserId: req.user.id,
+      metadata: {
+        plan: tenant.plan,
+        webhookUrl: tenant.webhookUrl
+      }
+    }
+  });
+
+  res.json({ taskId: workOrder.runId });
+});
+
+// Webhook: Route to tenant
+app.post('/webhooks/agentgate', async (req, res) => {
+  res.sendStatus(200);
+
+  const event = req.body;
+  const { tenantContext } = event.data;
+
+  // Forward to tenant's webhook
+  if (tenantContext?.metadata?.webhookUrl) {
+    await fetch(tenantContext.metadata.webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event)
+    });
+  }
+
+  // Track usage for billing
+  await recordUsage({
+    tenantId: tenantContext.tenantId,
+    credits: event.data.cost?.credits,
+    runId: event.data.runId
+  });
+});
+```
+
+## Error Handling Patterns
+
+### Retry with Backoff
+
+```typescript
+async function submitWithRetry(workOrder: CreateWorkOrderRequest) {
+  const maxRetries = 3;
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await client.workOrders.create(workOrder);
+    } catch (error) {
+      lastError = error;
+
+      if (error instanceof RateLimitError) {
+        const delay = error.retryAfter || Math.pow(2, attempt) * 1000;
+        await sleep(delay);
+      } else if (error instanceof ServerError) {
+        await sleep(Math.pow(2, attempt) * 1000);
+      } else {
+        throw error; // Don't retry client errors
+      }
+    }
+  }
+
+  throw lastError;
+}
+```
+
+### Graceful Degradation
+
+```typescript
+async function runTaskWithFallback(taskPrompt: string, repo: string) {
+  try {
+    const result = await runTask(taskPrompt, repo);
+    return { source: 'agentgate', result };
+  } catch (error) {
+    // Log error for monitoring
+    logger.error('AgentGate failed', error);
+
+    // Fall back to manual queue
+    await manualQueue.add({
+      taskPrompt,
+      repo,
+      error: error.message
+    });
+
+    return {
+      source: 'fallback',
+      message: 'Task queued for manual review'
+    };
+  }
+}
+```
+
+## Choosing a Pattern
+
+| Pattern | Complexity | Reliability | Scale |
+|---------|------------|-------------|-------|
+| Basic Polling | Low | Low | Low |
+| Webhook-Driven | Medium | Medium | Medium |
+| Queue-Based | High | High | High |
+
+<Tip>
+  Start with webhook-driven integration. Add queue infrastructure when you need guaranteed delivery or high scale.
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="webhook" href="/b2b/webhooks">
+    Set up webhook endpoints
+  </Card>
+  <Card title="Error Handling" icon="bug" href="/guides/error-handling">
+    Handle errors gracefully
+  </Card>
+</CardGroup>

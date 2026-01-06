@@ -1,0 +1,305 @@
+---
+title: TypeScript SDK
+description: "Official TypeScript/Node.js SDK for AgentGate"
+---
+
+# TypeScript SDK
+
+The official AgentGate SDK for TypeScript and Node.js.
+
+## Installation
+
+<CodeGroup>
+
+```bash npm
+npm install @agentgate/sdk
+```
+
+```bash yarn
+yarn add @agentgate/sdk
+```
+
+```bash pnpm
+pnpm add @agentgate/sdk
+```
+
+</CodeGroup>
+
+## Requirements
+
+- Node.js 18 or higher
+- TypeScript 4.7+ (for TypeScript projects)
+
+## Quick Start
+
+```typescript
+import { AgentGate } from '@agentgate/sdk';
+
+// Initialize client
+const client = new AgentGate({
+  apiKey: process.env.AGENTGATE_API_KEY
+});
+
+// Create a work order
+const workOrder = await client.workOrders.create({
+  taskPrompt: "Add comprehensive error handling to the API routes",
+  workspaceSource: {
+    type: "git",
+    repository: "https://github.com/your-org/your-repo",
+    branch: "main"
+  }
+});
+
+console.log('Run ID:', workOrder.runId);
+
+// Check run status
+const run = await client.runs.get(workOrder.runId);
+console.log('Status:', run.status);
+```
+
+## Configuration
+
+### Basic Configuration
+
+```typescript
+const client = new AgentGate({
+  apiKey: 'org_live_xxxxx'
+});
+```
+
+### Full Configuration
+
+```typescript
+const client = new AgentGate({
+  apiKey: process.env.AGENTGATE_API_KEY,
+  baseUrl: 'https://api.agentgate.mynewapi.com', // Optional
+  timeout: 30000, // Request timeout in ms
+  retries: 3, // Number of retries on failure
+});
+```
+
+### Environment Variables
+
+The SDK automatically reads from environment variables:
+
+```bash
+export AGENTGATE_API_KEY=org_live_xxxxx
+```
+
+```typescript
+// No need to pass apiKey
+const client = new AgentGate();
+```
+
+## Work Orders
+
+### Create Work Order
+
+```typescript
+const workOrder = await client.workOrders.create({
+  taskPrompt: "Your task description",
+  workspaceSource: {
+    type: "git",
+    repository: "https://github.com/org/repo",
+    branch: "main"
+  },
+  // Optional
+  maxIterations: 10,
+  tenantContext: {
+    tenantId: "acme-corp",
+    tenantUserId: "user_123"
+  },
+  metadata: {
+    ticketId: "PROJ-123"
+  }
+});
+```
+
+### Get Work Order
+
+```typescript
+const workOrder = await client.workOrders.get('wo_abc123');
+```
+
+## Runs
+
+### List Runs
+
+```typescript
+const runs = await client.runs.list({
+  status: 'succeeded',
+  limit: 10
+});
+
+for (const run of runs.data) {
+  console.log(run.id, run.status);
+}
+```
+
+### Get Run
+
+```typescript
+const run = await client.runs.get('run_abc123');
+
+if (run.status === 'succeeded') {
+  console.log('PR URL:', run.prUrl);
+}
+```
+
+### Cancel Run
+
+```typescript
+await client.runs.cancel('run_abc123');
+```
+
+## Credits
+
+### Get Balance
+
+```typescript
+const balance = await client.credits.getBalance();
+
+console.log('Total:', balance.totalCreditsCents);
+console.log('Included:', balance.includedCreditsCents);
+console.log('Purchased:', balance.purchasedCreditsCents);
+```
+
+### Get Usage
+
+```typescript
+const usage = await client.credits.getUsage({
+  startDate: '2024-01-01',
+  endDate: '2024-01-31',
+  tenantId: 'acme-corp' // Optional filter
+});
+
+for (const tx of usage.transactions) {
+  console.log(tx.createdAt, tx.amount, tx.runId);
+}
+```
+
+## Webhooks
+
+### Create Webhook
+
+```typescript
+const webhook = await client.webhooks.create({
+  url: 'https://your-app.com/webhooks/agentgate',
+  events: ['run.completed', 'run.failed'],
+  description: 'Production webhook'
+});
+
+// Save the secret immediately - only shown once!
+console.log('Secret:', webhook.secret);
+```
+
+### List Webhooks
+
+```typescript
+const webhooks = await client.webhooks.list();
+```
+
+### Update Webhook
+
+```typescript
+await client.webhooks.update('wh_abc123', {
+  events: ['run.completed', 'run.failed', 'run.cancelled'],
+  enabled: true
+});
+```
+
+### Delete Webhook
+
+```typescript
+await client.webhooks.delete('wh_abc123');
+```
+
+### Test Webhook
+
+```typescript
+const result = await client.webhooks.test('wh_abc123');
+console.log('Success:', result.success);
+```
+
+## Templates
+
+### List Templates
+
+```typescript
+const templates = await client.templates.list();
+```
+
+### Create Template
+
+```typescript
+const template = await client.templates.create({
+  id: 'my-api-template',
+  name: 'My API Template',
+  source: {
+    type: 'git',
+    repository: 'https://github.com/org/template'
+  },
+  variables: [
+    { name: 'projectName', required: true }
+  ]
+});
+```
+
+## Error Handling
+
+The SDK provides typed error classes:
+
+```typescript
+import {
+  AgentGateError,
+  AuthenticationError,
+  PaymentError,
+  RateLimitError,
+  ValidationError
+} from '@agentgate/sdk';
+
+try {
+  await client.workOrders.create(/* ... */);
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    console.error('Invalid API key');
+  } else if (error instanceof PaymentError) {
+    console.error('Insufficient credits:', error.details);
+  } else if (error instanceof RateLimitError) {
+    console.error('Rate limited, retry after:', error.retryAfter);
+  } else if (error instanceof ValidationError) {
+    console.error('Validation errors:', error.errors);
+  } else if (error instanceof AgentGateError) {
+    console.error('API error:', error.code, error.message);
+  }
+}
+```
+
+## TypeScript Types
+
+All types are exported:
+
+```typescript
+import type {
+  WorkOrder,
+  Run,
+  RunStatus,
+  CreditBalance,
+  Webhook,
+  WebhookEvent,
+  Template,
+  CreateWorkOrderRequest,
+  TenantContext
+} from '@agentgate/sdk';
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    REST API documentation
+  </Card>
+  <Card title="Error Handling" icon="bug" href="/guides/error-handling">
+    Error handling patterns
+  </Card>
+</CardGroup>

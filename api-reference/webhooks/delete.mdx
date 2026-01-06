@@ -1,0 +1,26 @@
+---
+title: Delete Webhook
+api: DELETE /v1/webhooks/{id}
+description: Delete a webhook
+---
+
+<ParamField path="id" type="string" required>
+  Webhook ID to delete.
+</ParamField>
+
+<Warning>
+  This action is irreversible. Any pending deliveries will be cancelled.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE https://api.agentgate.mynewapi.com/v1/webhooks/wh_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 204
+// No content
+```
+</ResponseExample>

@@ -1,0 +1,94 @@
+---
+title: Get Run
+api: GET /v1/runs/{id}
+description: Get detailed information about a run
+---
+
+<ParamField path="id" type="string" required>
+  Run ID (format: `run_xxxxx`).
+</ParamField>
+
+<ResponseField name="id" type="string">
+  Run identifier.
+</ResponseField>
+
+<ResponseField name="workOrderId" type="string">
+  Associated work order ID.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status: `pending`, `running`, `succeeded`, `failed`, `cancelled`.
+</ResponseField>
+
+<ResponseField name="iterations" type="integer">
+  Number of completed iterations.
+</ResponseField>
+
+<ResponseField name="prUrl" type="string">
+  Pull request URL (if changes were made).
+</ResponseField>
+
+<ResponseField name="timing" type="object">
+  Timing information.
+
+  <Expandable title="Properties">
+    <ResponseField name="timing.startedAt" type="string">
+      When execution started.
+    </ResponseField>
+    <ResponseField name="timing.completedAt" type="string">
+      When execution completed.
+    </ResponseField>
+    <ResponseField name="timing.durationMs" type="integer">
+      Duration in milliseconds.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="cost" type="object">
+  Cost information.
+
+  <Expandable title="Properties">
+    <ResponseField name="cost.credits" type="integer">
+      Credits consumed.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="tenantContext" type="object">
+  Tenant context (if provided).
+</ResponseField>
+
+<ResponseField name="error" type="object">
+  Error information (if failed).
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/runs/run_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "run_abc123",
+  "workOrderId": "wo_xyz789",
+  "status": "succeeded",
+  "iterations": 3,
+  "prUrl": "https://github.com/org/repo/pull/42",
+  "timing": {
+    "startedAt": "2024-01-15T10:30:00Z",
+    "completedAt": "2024-01-15T10:35:00Z",
+    "durationMs": 300000
+  },
+  "cost": {
+    "credits": 150
+  },
+  "tenantContext": {
+    "tenantId": "acme-corp",
+    "tenantUserId": "user_123"
+  }
+}
+```
+</ResponseExample>

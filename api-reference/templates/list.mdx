@@ -1,0 +1,47 @@
+---
+title: List Templates
+api: GET /v1/templates
+description: List available workspace templates
+---
+
+<ParamField query="includeBuiltIn" type="boolean" default={true}>
+  Include system built-in templates.
+</ParamField>
+
+<ParamField query="tags" type="string">
+  Filter by tags (comma-separated).
+</ParamField>
+
+<ResponseField name="templates" type="array">
+  Array of template objects.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/templates \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "templates": [
+    {
+      "id": "node-typescript-api",
+      "name": "Node.js TypeScript API",
+      "description": "Express API with TypeScript",
+      "builtIn": true,
+      "tags": ["node", "typescript", "api"]
+    },
+    {
+      "id": "our-api-template",
+      "name": "Our API Template",
+      "description": "Standard API with our conventions",
+      "builtIn": false,
+      "tags": ["api", "internal"]
+    }
+  ]
+}
+```
+</ResponseExample>

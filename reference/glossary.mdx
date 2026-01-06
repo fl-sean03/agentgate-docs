@@ -1,0 +1,132 @@
+---
+title: Glossary
+description: "Definitions of AgentGate terms and concepts"
+---
+
+# Glossary
+
+Quick reference for AgentGate terminology.
+
+## A
+
+### API Key
+A secret token used to authenticate requests to the AgentGate API. Format: `org_live_xxxxx`.
+
+## B
+
+### B2B2C
+Business-to-Business-to-Consumer. A model where AgentGate serves your platform, which serves end users.
+
+## C
+
+### Convergence
+When a run successfully passes all verification levels and produces a valid result.
+
+### Credits
+The unit of payment for AgentGate usage. Runs consume credits based on complexity.
+
+## G
+
+### Gate Plan
+Configuration that determines which verification levels apply to a run.
+
+## I
+
+### Iteration
+A single cycle of code generation and verification within a run. Runs may go through multiple iterations.
+
+### Included Credits
+Monthly credit allocation provided with your subscription plan. Resets each billing cycle.
+
+## L
+
+### L0 (Level 0)
+Contract verification: syntax checking, type checking, linting.
+
+### L1 (Level 1)
+Test verification: unit test execution.
+
+### L2 (Level 2)
+Behavioral verification: integration test execution.
+
+### L3 (Level 3)
+Sanity verification: end-to-end tests, performance checks, security scans.
+
+## O
+
+### Organization
+The top-level account entity in AgentGate. API keys are scoped to organizations.
+
+## P
+
+### Purchased Credits
+Credits bought separately from the subscription. Never expire.
+
+## R
+
+### Run
+An execution of a work order. Tracks status, iterations, and results.
+
+### Run Status
+The current state of a run: `pending`, `running`, `succeeded`, `failed`, or `cancelled`.
+
+## S
+
+### Scope
+A permission that can be granted to an API key, like `work-orders:write` or `runs:read`.
+
+## T
+
+### Task Prompt
+The natural language description of what you want AgentGate to accomplish.
+
+### Template
+A pre-configured workspace blueprint used to start new workspaces.
+
+### Tenant
+In B2B2C context, your customer organization.
+
+### Tenant Context
+Metadata identifying the end user or tenant organization for a work order.
+
+### Tenant ID
+Identifier for a tenant organization in your system.
+
+### Tenant User ID
+Identifier for a specific user within a tenant.
+
+## V
+
+### Verification
+Automated checks that ensure generated code meets quality standards.
+
+### Verification Level
+One of L0-L3, representing different depths of code verification.
+
+## W
+
+### Webhook
+An HTTP callback that notifies your application when events occur.
+
+### Webhook Secret
+A shared secret used to verify webhook signatures.
+
+### Work Order
+A request for AgentGate to perform an automated task.
+
+### Workspace
+An isolated environment where a run executes.
+
+### Workspace Source
+The origin of workspace files: Git repository, template, or URL.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/concepts/work-orders">
+    Learn about key concepts
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    Explore the API
+  </Card>
+</CardGroup>

@@ -1,0 +1,73 @@
+---
+title: Introduction
+description: "AgentGate is B2B infrastructure for verified AI code automation"
+---
+
+# Introduction to AgentGate
+
+AgentGate is a B2B platform that enables software companies to add verified AI code automation to their products. Submit work orders describing what you want accomplished, and AgentGate executes the task with built-in verification to ensure quality.
+
+## What AgentGate Does
+
+AgentGate handles the complexity of AI-powered code automation so you don't have to:
+
+- **Execute Work Orders**: Submit tasks describing what you want accomplished in a codebase
+- **Iterate Automatically**: AI generates code, runs verification, and improves until requirements are met
+- **Verify Quality**: Multi-level verification ensures generated code meets quality standards
+- **Deliver Results**: Get pull requests, diffs, or direct results back to your application
+
+## How It Works
+
+<Steps>
+  <Step title="Submit a Work Order">
+    Send a work order via API describing what you want accomplished. Include the task prompt and workspace source (GitHub repo, template, etc.).
+  </Step>
+  <Step title="AgentGate Executes">
+    AgentGate creates an isolated workspace, runs the AI agent, generates code, and verifies the results through multiple verification levels.
+  </Step>
+  <Step title="Receive Results">
+    Get notified via webhook when complete. Retrieve the results including any pull requests created, changes made, and verification status.
+  </Step>
+</Steps>
+
+## Key Concepts
+
+<CardGroup cols={2}>
+  <Card title="Work Orders" icon="file-lines" href="/concepts/work-orders">
+    Requests for AgentGate to perform automated tasks
+  </Card>
+  <Card title="Runs" icon="play" href="/concepts/runs">
+    Executions of work orders with status tracking
+  </Card>
+  <Card title="Verification" icon="check-double" href="/concepts/iterations">
+    Multi-level quality assurance for generated code
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/b2b/webhooks">
+    Real-time notifications for run events
+  </Card>
+  <Card title="Credits" icon="coins" href="/b2b/credits">
+    Usage-based billing for API access
+  </Card>
+  <Card title="Templates" icon="copy" href="/b2b/templates">
+    Pre-configured workspace starting points
+  </Card>
+</CardGroup>
+
+## Who Is AgentGate For
+
+AgentGate is designed for:
+
+- **B2B SaaS Platforms**: Add AI code automation features to your product
+- **Development Tool Companies**: Integrate verified code generation into IDEs, CI/CD, or DevOps tools
+- **Enterprise Teams**: Build internal automation with quality guarantees
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API call in 15 minutes
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Learn about API key authentication
+  </Card>
+</CardGroup>

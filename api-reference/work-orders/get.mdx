@@ -1,0 +1,71 @@
+---
+title: Get Work Order
+api: GET /v1/work-orders/{id}
+description: Retrieve details of a work order
+---
+
+<ParamField path="id" type="string" required>
+  Work order ID (format: `wo_xxxxx`).
+</ParamField>
+
+<ResponseField name="id" type="string">
+  Work order identifier.
+</ResponseField>
+
+<ResponseField name="taskPrompt" type="string">
+  The task description.
+</ResponseField>
+
+<ResponseField name="workspaceSource" type="object">
+  Workspace source configuration.
+</ResponseField>
+
+<ResponseField name="runId" type="string">
+  Associated run identifier.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the work order.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of creation.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/work-orders/wo_abc123 \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "wo_abc123xyz",
+  "taskPrompt": "Add input validation to the user registration endpoint",
+  "workspaceSource": {
+    "type": "git",
+    "repository": "https://github.com/your-org/your-repo",
+    "branch": "main"
+  },
+  "runId": "run_def456uvw",
+  "status": "running",
+  "maxIterations": 5,
+  "tenantContext": {
+    "tenantId": "acme-corp",
+    "tenantUserId": "user_123"
+  },
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+```json 404
+{
+  "error": {
+    "code": "WORK_ORDER_NOT_FOUND",
+    "message": "Work order not found"
+  }
+}
+```
+</ResponseExample>

@@ -1,0 +1,75 @@
+---
+title: Get Usage History
+api: GET /v1/credits/usage
+description: Get credit transaction history
+---
+
+<ParamField query="startDate" type="string">
+  Filter by start date (ISO 8601).
+</ParamField>
+
+<ParamField query="endDate" type="string">
+  Filter by end date (ISO 8601).
+</ParamField>
+
+<ParamField query="tenantId" type="string">
+  Filter by tenant ID.
+</ParamField>
+
+<ParamField query="tenantUserId" type="string">
+  Filter by tenant user ID.
+</ParamField>
+
+<ParamField query="type" type="string">
+  Filter by transaction type: `deduction`, `purchase`, `refund`.
+</ParamField>
+
+<ParamField query="limit" type="integer" default={50}>
+  Results per page (max 100).
+</ParamField>
+
+<ParamField query="offset" type="integer" default={0}>
+  Number of results to skip.
+</ParamField>
+
+<ResponseField name="transactions" type="array">
+  Array of credit transactions.
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total number of matching transactions.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl "https://api.agentgate.mynewapi.com/v1/credits/usage?startDate=2024-01-01&tenantId=acme-corp" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "transactions": [
+    {
+      "id": "txn_abc123",
+      "type": "deduction",
+      "amount": 150,
+      "runId": "run_xyz789",
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_123",
+      "createdAt": "2024-01-15T10:35:00Z"
+    },
+    {
+      "id": "txn_abc122",
+      "type": "purchase",
+      "amount": 10000,
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "total": 25,
+  "limit": 50,
+  "offset": 0
+}
+```
+</ResponseExample>

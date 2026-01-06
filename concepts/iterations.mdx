@@ -1,0 +1,238 @@
+---
+title: Iterations and Verification
+description: "How AgentGate iterates and verifies generated code"
+---
+
+# Iterations and Verification
+
+AgentGate uses an iterative process with multi-level verification to ensure generated code meets quality standards. This page explains how iterations work and what verification levels mean.
+
+## The Iteration Process
+
+When a run executes, it goes through multiple iterations:
+
+<Steps>
+  <Step title="Code Generation">
+    The AI agent analyzes the task and generates code changes.
+  </Step>
+  <Step title="Verification">
+    Automated verification checks run against the generated code.
+  </Step>
+  <Step title="Feedback Loop">
+    If verification fails, results feed back to the AI for improvement.
+  </Step>
+  <Step title="Repeat or Complete">
+    Process repeats until verification passes or max iterations reached.
+  </Step>
+</Steps>
+
+### Why Multiple Iterations?
+
+AI-generated code doesn't always work on the first try. The iteration process:
+
+- Catches errors early through verification
+- Provides feedback for the AI to improve
+- Ensures quality through multiple checks
+- Converges on working solutions
+
+## Verification Levels
+
+AgentGate uses four verification levels, each progressively more thorough:
+
+### L0: Contract Verification
+
+**What it checks:**
+- Syntax correctness
+- Type checking (for typed languages)
+- Import resolution
+- Basic linting
+
+**When it runs:** Every iteration
+
+**Example failures:**
+- Syntax errors
+- Missing imports
+- Type mismatches
+
+### L1: Test Verification
+
+**What it checks:**
+- Unit test execution
+- Test pass/fail status
+- Code coverage thresholds
+
+**When it runs:** After L0 passes
+
+**Example failures:**
+- Failing unit tests
+- Below coverage threshold
+- Test runtime errors
+
+### L2: Behavioral Verification
+
+**What it checks:**
+- Integration test execution
+- API contract compliance
+- Cross-component interaction
+
+**When it runs:** After L1 passes
+
+**Example failures:**
+- Integration test failures
+- API response mismatches
+- Database interaction errors
+
+### L3: Sanity Verification
+
+**What it checks:**
+- End-to-end scenarios
+- Performance thresholds
+- Security scans
+- Final quality checks
+
+**When it runs:** After L2 passes
+
+**Example failures:**
+- E2E test failures
+- Performance degradation
+- Security vulnerabilities
+
+## Gate Plans
+
+Gate plans configure which verification levels apply:
+
+### Default Gate Plan
+
+By default, all relevant verification levels run:
+
+1. L0 always runs
+2. L1 runs if tests exist
+3. L2 runs if integration tests exist
+4. L3 runs for final validation
+
+### Custom Gate Plans
+
+Configure verification for your needs:
+
+```json
+{
+  "taskPrompt": "...",
+  "workspaceSource": { "..." },
+  "gatePlan": {
+    "levels": ["L0", "L1"],
+    "customChecks": {
+      "lint": true,
+      "typecheck": true,
+      "test": true
+    }
+  }
+}
+```
+
+### When to Customize
+
+<AccordionGroup>
+  <Accordion title="Quick Iterations">
+    Use only L0 for rapid prototyping where speed matters more than comprehensive testing.
+  </Accordion>
+
+  <Accordion title="High Assurance">
+    Use all levels (L0-L3) for production-critical code where quality is paramount.
+  </Accordion>
+
+  <Accordion title="Test-Focused">
+    Emphasize L1/L2 when the codebase has good test coverage you want to leverage.
+  </Accordion>
+</AccordionGroup>
+
+## Convergence
+
+A run **converges** when verification passes at all required levels:
+
+```
+Iteration 1: L0 ✓, L1 ✗ (test failures)
+Iteration 2: L0 ✓, L1 ✓, L2 ✗ (integration issue)
+Iteration 3: L0 ✓, L1 ✓, L2 ✓, L3 ✓ → CONVERGED
+```
+
+### Factors Affecting Convergence
+
+| Factor | Impact |
+|--------|--------|
+| Task clarity | Clearer prompts converge faster |
+| Codebase quality | Well-structured code helps AI |
+| Test coverage | More tests provide better feedback |
+| Task complexity | Complex tasks need more iterations |
+
+## Iteration Limits
+
+### Default Limit
+
+The default maximum is **10 iterations**.
+
+### Configuring Limits
+
+Set custom limits per work order:
+
+```json
+{
+  "taskPrompt": "...",
+  "workspaceSource": { "..." },
+  "maxIterations": 5
+}
+```
+
+### When Limits Are Reached
+
+If max iterations reached without convergence:
+
+- Run status becomes `failed`
+- Best partial result may be available
+- You're charged for completed iterations
+
+<Tip>
+  If runs frequently hit limits, consider: improving task prompts, reducing task scope, or increasing limits for complex tasks.
+</Tip>
+
+## Cost Implications
+
+Each iteration incurs costs:
+
+- More iterations = higher cost
+- Verification level affects iteration cost
+- Failed iterations still cost credits
+
+### Cost Optimization
+
+- Write clear, specific task prompts
+- Use appropriate verification levels
+- Start with lower iteration limits and increase if needed
+- Break complex tasks into smaller work orders
+
+## Monitoring Iterations
+
+Track iteration progress in run details:
+
+```json
+{
+  "id": "run_abc123",
+  "status": "running",
+  "iterations": 3,
+  "currentIteration": {
+    "number": 3,
+    "phase": "verification",
+    "level": "L1"
+  }
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Runs" icon="play" href="/concepts/runs">
+    Learn about run lifecycle
+  </Card>
+  <Card title="Best Practices" icon="lightbulb" href="/guides/best-practices">
+    Optimize for faster convergence
+  </Card>
+</CardGroup>

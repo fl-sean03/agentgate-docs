@@ -1,0 +1,352 @@
+---
+title: Templates
+description: "Pre-configured workspace starting points"
+---
+
+# Templates
+
+Templates provide pre-configured workspace starting points. Use built-in templates for common project types or create custom templates for your organization.
+
+## What Are Templates
+
+Templates are workspace blueprints that include:
+
+- **File structure**: Standard project layout
+- **Dependencies**: Pre-installed packages
+- **Configuration**: Build tools, linting, testing setup
+- **Variables**: Customizable placeholders
+
+## Using Templates
+
+### In Work Orders
+
+Specify a template as your workspace source:
+
+```json
+{
+  "taskPrompt": "Create a REST API with user authentication",
+  "workspaceSource": {
+    "type": "template",
+    "templateId": "node-typescript-api",
+    "variables": {
+      "projectName": "my-auth-api",
+      "author": "Your Name"
+    }
+  }
+}
+```
+
+### Built-In Templates
+
+| Template ID | Description |
+|-------------|-------------|
+| `node-typescript-api` | Node.js API with TypeScript, Express |
+| `node-typescript-lib` | Node.js library with TypeScript |
+| `python-fastapi` | Python API with FastAPI |
+| `python-flask` | Python API with Flask |
+| `react-typescript` | React app with TypeScript |
+| `next-typescript` | Next.js app with TypeScript |
+
+<Tip>
+  Use `GET /v1/templates` to see all available templates and their configurations.
+</Tip>
+
+## Template Variables
+
+Templates can define variables for customization:
+
+```json
+{
+  "workspaceSource": {
+    "type": "template",
+    "templateId": "node-typescript-api",
+    "variables": {
+      "projectName": "my-api",
+      "description": "My awesome API",
+      "author": "Jane Developer",
+      "license": "MIT"
+    }
+  }
+}
+```
+
+Variables are substituted in template files:
+
+```json
+// template package.json
+{
+  "name": "{{projectName}}",
+  "description": "{{description}}",
+  "author": "{{author}}",
+  "license": "{{license}}"
+}
+```
+
+## Creating Organization Templates
+
+Create custom templates for your organization's needs.
+
+### Create Template
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/templates \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "our-api-template",
+    "name": "Our API Template",
+    "description": "Standard API template with our conventions",
+    "source": {
+      "type": "git",
+      "repository": "https://github.com/our-org/api-template",
+      "branch": "main"
+    },
+    "variables": [
+      {
+        "name": "serviceName",
+        "description": "Name of the service",
+        "required": true
+      },
+      {
+        "name": "team",
+        "description": "Owning team",
+        "default": "platform"
+      }
+    ]
+  }'
+```
+
+```typescript TypeScript SDK
+const template = await client.templates.create({
+  id: "our-api-template",
+  name: "Our API Template",
+  description: "Standard API template with our conventions",
+  source: {
+    type: "git",
+    repository: "https://github.com/our-org/api-template",
+    branch: "main"
+  },
+  variables: [
+    {
+      name: "serviceName",
+      description: "Name of the service",
+      required: true
+    },
+    {
+      name: "team",
+      description: "Owning team",
+      default: "platform"
+    }
+  ]
+});
+```
+
+</CodeGroup>
+
+### Template Structure
+
+```json
+{
+  "id": "unique-template-id",
+  "name": "Human Readable Name",
+  "description": "What this template provides",
+  "source": {
+    // Where to get template files
+  },
+  "variables": [
+    // Variable definitions
+  ],
+  "hooks": {
+    // Lifecycle hooks
+  }
+}
+```
+
+### Template Sources
+
+<Tabs>
+  <Tab title="Git Repository">
+    ```json
+    {
+      "source": {
+        "type": "git",
+        "repository": "https://github.com/org/template-repo",
+        "branch": "main",
+        "path": "templates/api"  // Optional subdirectory
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="URL">
+    ```json
+    {
+      "source": {
+        "type": "url",
+        "url": "https://example.com/template.tar.gz"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Variable Definitions
+
+```json
+{
+  "variables": [
+    {
+      "name": "projectName",
+      "description": "Name of the project",
+      "required": true,
+      "pattern": "^[a-z][a-z0-9-]*$"  // Validation regex
+    },
+    {
+      "name": "port",
+      "description": "Server port",
+      "default": "3000",
+      "type": "number"
+    },
+    {
+      "name": "enableAuth",
+      "description": "Include authentication",
+      "default": "true",
+      "type": "boolean"
+    }
+  ]
+}
+```
+
+### Template Hooks
+
+Run commands during workspace setup:
+
+```json
+{
+  "hooks": {
+    "postCreate": [
+      "npm install",
+      "npm run setup"
+    ]
+  }
+}
+```
+
+## Managing Templates
+
+### List Templates
+
+```bash
+curl https://api.agentgate.mynewapi.com/v1/templates \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+Response includes both built-in and organization templates:
+
+```json
+{
+  "templates": [
+    {
+      "id": "node-typescript-api",
+      "name": "Node.js TypeScript API",
+      "description": "Express API with TypeScript",
+      "builtIn": true
+    },
+    {
+      "id": "our-api-template",
+      "name": "Our API Template",
+      "description": "Standard API with our conventions",
+      "builtIn": false
+    }
+  ]
+}
+```
+
+### Get Template Details
+
+```bash
+curl https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Update Template
+
+```bash
+curl -X PUT https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Our API Template v2",
+    "description": "Updated template with new conventions",
+    "source": {
+      "type": "git",
+      "repository": "https://github.com/our-org/api-template",
+      "branch": "v2"
+    }
+  }'
+```
+
+### Delete Template
+
+```bash
+curl -X DELETE https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+<Warning>
+  Built-in templates cannot be deleted.
+</Warning>
+
+## Template Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Meaningful Variables">
+    Define variables for things that change between uses:
+    - Project/service names
+    - Team ownership
+    - Feature flags
+    - Configuration values
+  </Accordion>
+
+  <Accordion title="Include Sensible Defaults">
+    Provide defaults where possible to reduce required input:
+    ```json
+    {
+      "name": "logLevel",
+      "default": "info"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Add Validation">
+    Use patterns to catch errors early:
+    ```json
+    {
+      "name": "projectName",
+      "pattern": "^[a-z][a-z0-9-]{2,30}$"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Document Variables">
+    Provide clear descriptions for each variable:
+    ```json
+    {
+      "name": "databaseUrl",
+      "description": "PostgreSQL connection string (postgres://user:pass@host/db)"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Workspaces" icon="folder" href="/concepts/workspaces">
+    Learn about workspace sources
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/templates/list">
+    Templates API endpoints
+  </Card>
+</CardGroup>

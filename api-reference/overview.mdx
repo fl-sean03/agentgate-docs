@@ -1,0 +1,157 @@
+---
+title: API Overview
+description: "Introduction to the AgentGate API"
+---
+
+# API Overview
+
+The AgentGate API provides programmatic access to all AgentGate functionality.
+
+## Base URL
+
+```
+https://api.agentgate.mynewapi.com
+```
+
+All API requests must use HTTPS.
+
+## Authentication
+
+Authenticate using your organization API key in the Authorization header:
+
+```
+Authorization: Bearer org_live_xxxxxxxxxxxxxxxx
+```
+
+See [Authentication](/authentication) for details on obtaining and managing API keys.
+
+## Request Format
+
+- Use `Content-Type: application/json` for request bodies
+- Request bodies must be valid JSON
+- Dates use ISO 8601 format
+
+```bash
+curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"taskPrompt": "...", "workspaceSource": {...}}'
+```
+
+## Response Format
+
+All responses are JSON:
+
+```json
+{
+  "data": {
+    // Response payload
+  }
+}
+```
+
+Error responses:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "details": {}
+  }
+}
+```
+
+## Pagination
+
+List endpoints support pagination:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `limit` | Results per page | 20 |
+| `offset` | Number of results to skip | 0 |
+
+Response includes pagination info:
+
+```json
+{
+  "data": [...],
+  "total": 100,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+## Rate Limits
+
+See [Rate Limits](/reference/rate-limits) for details.
+
+Headers included in responses:
+
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1705316100
+```
+
+## API Endpoints
+
+### Work Orders
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/work-orders` | Create a work order |
+| GET | `/v1/work-orders/{id}` | Get work order details |
+
+### Runs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/runs` | List runs |
+| GET | `/v1/runs/{id}` | Get run details |
+| POST | `/v1/runs/{id}/cancel` | Cancel a run |
+
+### Credits
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/credits` | Get credit balance |
+| GET | `/v1/credits/usage` | Get usage history |
+
+### Webhooks
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/webhooks` | List webhooks |
+| POST | `/v1/webhooks` | Create a webhook |
+| GET | `/v1/webhooks/{id}` | Get webhook details |
+| PATCH | `/v1/webhooks/{id}` | Update a webhook |
+| DELETE | `/v1/webhooks/{id}` | Delete a webhook |
+| POST | `/v1/webhooks/{id}/test` | Test a webhook |
+
+### Templates
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/v1/templates` | List templates |
+| POST | `/v1/templates` | Create a template |
+| GET | `/v1/templates/{id}` | Get template details |
+| PUT | `/v1/templates/{id}` | Update a template |
+| DELETE | `/v1/templates/{id}` | Delete a template |
+
+## SDKs
+
+Official SDKs are available for:
+
+- [TypeScript/Node.js](/sdks/typescript)
+- [Python](/sdks/python) (coming soon)
+
+SDKs handle authentication, retries, and provide typed interfaces.
+
+## Playground
+
+Use the interactive playground on each endpoint page to test API calls directly in the documentation.
+
+<Note>
+  You'll need to enter your API key to use the playground.
+</Note>

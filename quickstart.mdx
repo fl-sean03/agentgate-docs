@@ -1,0 +1,188 @@
+---
+title: Quickstart
+description: "Make your first AgentGate API call in 15 minutes"
+---
+
+# Quickstart
+
+Get up and running with AgentGate in 15 minutes. By the end of this guide, you'll have submitted your first work order and retrieved the results.
+
+## Prerequisites
+
+Before you begin, you'll need:
+
+- An AgentGate account with an organization
+- An organization API key
+- A GitHub repository or codebase to work with
+
+<Info>
+  Don't have an account? [Sign up](https://agentgate.mynewapi.com/signup) to get started.
+</Info>
+
+## Step 1: Get Your API Key
+
+1. Log in to your [AgentGate Dashboard](https://agentgate.mynewapi.com)
+2. Navigate to **Settings** → **API Keys**
+3. Click **Create API Key**
+4. Give your key a name (e.g., "Development")
+5. Select the scopes you need (or use wildcard for full access)
+6. Copy and save your API key securely
+
+<Warning>
+  Your API key is only shown once. Store it securely and never commit it to source control.
+</Warning>
+
+API keys follow the format `org_live_` followed by a random string.
+
+## Step 2: Make Your First API Call
+
+Let's submit a simple work order. This example asks AgentGate to add a README file to a repository.
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskPrompt": "Create a README.md file that describes this project based on the code structure",
+    "workspaceSource": {
+      "type": "git",
+      "repository": "https://github.com/your-org/your-repo",
+      "branch": "main"
+    }
+  }'
+```
+
+```typescript TypeScript SDK
+import { AgentGate } from '@agentgate/sdk';
+
+const client = new AgentGate({
+  apiKey: process.env.AGENTGATE_API_KEY
+});
+
+const workOrder = await client.workOrders.create({
+  taskPrompt: "Create a README.md file that describes this project based on the code structure",
+  workspaceSource: {
+    type: "git",
+    repository: "https://github.com/your-org/your-repo",
+    branch: "main"
+  }
+});
+
+console.log('Work Order ID:', workOrder.workOrderId);
+console.log('Run ID:', workOrder.runId);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.agentgate.mynewapi.com/v1/work-orders",
+    headers={
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    },
+    json={
+        "taskPrompt": "Create a README.md file that describes this project based on the code structure",
+        "workspaceSource": {
+            "type": "git",
+            "repository": "https://github.com/your-org/your-repo",
+            "branch": "main"
+        }
+    }
+)
+
+data = response.json()
+print(f"Work Order ID: {data['workOrderId']}")
+print(f"Run ID: {data['runId']}")
+```
+
+</CodeGroup>
+
+You'll receive a response like:
+
+```json
+{
+  "workOrderId": "wo_abc123xyz",
+  "runId": "run_def456uvw",
+  "status": "pending",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+## Step 3: Check the Result
+
+The run executes asynchronously. Check the status by polling the run endpoint:
+
+<CodeGroup>
+
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/runs/run_def456uvw \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```typescript TypeScript SDK
+const run = await client.runs.get('run_def456uvw');
+
+console.log('Status:', run.status);
+if (run.status === 'succeeded') {
+  console.log('PR URL:', run.prUrl);
+}
+```
+
+```python Python
+response = requests.get(
+    f"https://api.agentgate.mynewapi.com/v1/runs/run_def456uvw",
+    headers={"Authorization": f"Bearer {api_key}"}
+)
+
+run = response.json()
+print(f"Status: {run['status']}")
+if run['status'] == 'succeeded':
+    print(f"PR URL: {run.get('prUrl')}")
+```
+
+</CodeGroup>
+
+Run status values:
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Queued for execution |
+| `running` | Currently executing |
+| `succeeded` | Completed successfully |
+| `failed` | Completed with failure |
+| `cancelled` | Stopped by user |
+
+<Tip>
+  For production integrations, use [webhooks](/b2b/webhooks) instead of polling to receive real-time notifications when runs complete.
+</Tip>
+
+## What Just Happened
+
+When you submitted the work order:
+
+1. **AgentGate validated** the request and created a work order
+2. **A run was created** to execute the work order
+3. **An isolated workspace** was set up from your repository
+4. **The AI agent** analyzed the code and generated the README
+5. **Verification ran** to ensure the output meets quality standards
+6. **A pull request** was created with the changes (if configured)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Work Orders" icon="file-lines" href="/concepts/work-orders">
+    Learn about work order configuration options
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/b2b/webhooks">
+    Set up real-time notifications
+  </Card>
+  <Card title="Tenant Context" icon="building" href="/b2b/tenant-context">
+    Add multi-tenant support for B2B2C
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    Explore all API endpoints
+  </Card>
+</CardGroup>

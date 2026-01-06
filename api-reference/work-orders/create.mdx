@@ -1,0 +1,133 @@
+---
+title: Create Work Order
+api: POST /v1/work-orders
+description: Create a new work order to execute an automated task
+---
+
+<ParamField body="taskPrompt" type="string" required>
+  Description of the task to accomplish. Be specific and include context.
+</ParamField>
+
+<ParamField body="workspaceSource" type="object" required>
+  Source for the workspace files.
+
+  <Expandable title="Git Source">
+    <ParamField body="workspaceSource.type" type="string" required>
+      Set to `git` for Git repository source.
+    </ParamField>
+    <ParamField body="workspaceSource.repository" type="string" required>
+      Git repository URL.
+    </ParamField>
+    <ParamField body="workspaceSource.branch" type="string">
+      Branch to clone. Defaults to default branch.
+    </ParamField>
+    <ParamField body="workspaceSource.commit" type="string">
+      Specific commit SHA to checkout.
+    </ParamField>
+  </Expandable>
+
+  <Expandable title="Template Source">
+    <ParamField body="workspaceSource.type" type="string" required>
+      Set to `template` for template source.
+    </ParamField>
+    <ParamField body="workspaceSource.templateId" type="string" required>
+      ID of the template to use.
+    </ParamField>
+    <ParamField body="workspaceSource.variables" type="object">
+      Variables to substitute in the template.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="maxIterations" type="integer" default={10}>
+  Maximum number of iterations before failing.
+</ParamField>
+
+<ParamField body="gatePlan" type="object">
+  Verification configuration.
+</ParamField>
+
+<ParamField body="webhookUrl" type="string">
+  URL to receive completion webhook.
+</ParamField>
+
+<ParamField body="tenantContext" type="object">
+  B2B2C tenant information.
+
+  <Expandable title="Properties">
+    <ParamField body="tenantContext.tenantId" type="string">
+      Tenant organization identifier.
+    </ParamField>
+    <ParamField body="tenantContext.tenantUserId" type="string">
+      End user identifier.
+    </ParamField>
+    <ParamField body="tenantContext.metadata" type="object">
+      Custom key-value metadata.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Custom metadata to attach to the work order.
+</ParamField>
+
+<ResponseField name="workOrderId" type="string">
+  Unique identifier for the work order.
+</ResponseField>
+
+<ResponseField name="runId" type="string">
+  Unique identifier for the created run.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial status (always `pending`).
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of creation.
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskPrompt": "Add input validation to the user registration endpoint",
+    "workspaceSource": {
+      "type": "git",
+      "repository": "https://github.com/your-org/your-repo",
+      "branch": "main"
+    },
+    "maxIterations": 5,
+    "tenantContext": {
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_123"
+    }
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "workOrderId": "wo_abc123xyz",
+  "runId": "run_def456uvw",
+  "status": "pending",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+```json 402
+{
+  "error": {
+    "code": "INSUFFICIENT_CREDITS",
+    "message": "Insufficient credits to submit work order",
+    "details": {
+      "estimatedCost": 500,
+      "availableCredits": 200
+    }
+  }
+}
+```
+</ResponseExample>

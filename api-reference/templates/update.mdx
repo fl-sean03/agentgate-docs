@@ -1,0 +1,73 @@
+---
+title: Update Template
+api: PUT /v1/templates/{id}
+description: Update a template configuration
+---
+
+<ParamField path="id" type="string" required>
+  Template ID to update.
+</ParamField>
+
+<ParamField body="name" type="string">
+  Updated template name.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description.
+</ParamField>
+
+<ParamField body="source" type="object">
+  Updated source configuration.
+</ParamField>
+
+<ParamField body="variables" type="array">
+  Updated variable definitions.
+</ParamField>
+
+<ParamField body="hooks" type="object">
+  Updated lifecycle hooks.
+</ParamField>
+
+<ParamField body="tags" type="array">
+  Updated tags.
+</ParamField>
+
+<Warning>
+  Built-in templates cannot be updated.
+</Warning>
+
+<RequestExample>
+```bash cURL
+curl -X PUT https://api.agentgate.mynewapi.com/v1/templates/our-api-template \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Our API Template v2",
+    "description": "Updated template with new conventions",
+    "source": {
+      "type": "git",
+      "repository": "https://github.com/our-org/api-template",
+      "branch": "v2"
+    }
+  }'
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": "our-api-template",
+  "name": "Our API Template v2",
+  "description": "Updated template with new conventions",
+  "source": {
+    "type": "git",
+    "repository": "https://github.com/our-org/api-template",
+    "branch": "v2"
+  },
+  "variables": [...],
+  "builtIn": false,
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z"
+}
+```
+</ResponseExample>

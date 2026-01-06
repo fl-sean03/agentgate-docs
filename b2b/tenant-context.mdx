@@ -1,0 +1,305 @@
+---
+title: Tenant Context
+description: "Multi-tenant support for B2B2C integrations"
+---
+
+# Tenant Context
+
+Tenant context enables B2B2C (Business-to-Business-to-Consumer) integrations. Pass tenant information with work orders to track usage, route webhooks, and attribute costs to your end users.
+
+## Understanding B2B2C
+
+In the B2B2C model:
+
+- **AgentGate** is the first B (we provide the platform)
+- **Your Platform** is the second B (you build products with AgentGate)
+- **End Users** are the C (your customers use your product)
+
+Tenant context connects actions to the end users in your platform.
+
+## What Is Tenant Context
+
+Tenant context is metadata that travels with work orders:
+
+```json
+{
+  "taskPrompt": "...",
+  "workspaceSource": { "..." },
+  "tenantContext": {
+    "tenantId": "acme-corp",
+    "tenantUserId": "user_12345",
+    "metadata": {
+      "plan": "enterprise",
+      "region": "us-west"
+    }
+  }
+}
+```
+
+## Tenant Context Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `tenantId` | No | Identifier for the tenant organization |
+| `tenantUserId` | No | Identifier for the specific user |
+| `metadata` | No | Custom key-value pairs |
+
+<Note>
+  All fields are optional, but providing them enables usage tracking and attribution.
+</Note>
+
+### Tenant ID
+
+Identifies the organization or account in your system:
+
+```json
+{
+  "tenantId": "acme-corp"
+}
+```
+
+Use cases:
+- Billing aggregation by customer
+- Usage limits per tenant
+- Tenant-specific webhooks
+
+### Tenant User ID
+
+Identifies the specific end user:
+
+```json
+{
+  "tenantUserId": "user_12345"
+}
+```
+
+Use cases:
+- Per-user usage tracking
+- User-level rate limiting
+- Audit trails
+
+### Metadata
+
+Custom information for your use:
+
+```json
+{
+  "metadata": {
+    "plan": "enterprise",
+    "department": "engineering",
+    "costCenter": "CC-1234",
+    "projectId": "proj_abc"
+  }
+}
+```
+
+Metadata is passed through to webhooks and available in usage reports.
+
+## Passing Tenant Context
+
+Include tenant context when creating work orders:
+
+<CodeGroup>
+
+```typescript TypeScript SDK
+const workOrder = await client.workOrders.create({
+  taskPrompt: "Add unit tests for the user service",
+  workspaceSource: {
+    type: "git",
+    repository: "https://github.com/acme/app"
+  },
+  tenantContext: {
+    tenantId: "acme-corp",
+    tenantUserId: "user_12345",
+    metadata: {
+      requestId: "req_abc123"
+    }
+  }
+});
+```
+
+```bash cURL
+curl -X POST https://api.agentgate.mynewapi.com/v1/work-orders \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "taskPrompt": "Add unit tests for the user service",
+    "workspaceSource": {
+      "type": "git",
+      "repository": "https://github.com/acme/app"
+    },
+    "tenantContext": {
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_12345",
+      "metadata": {
+        "requestId": "req_abc123"
+      }
+    }
+  }'
+```
+
+</CodeGroup>
+
+## Tenant Context in Webhooks
+
+Webhooks include tenant context, enabling you to route notifications:
+
+```json
+{
+  "type": "run.completed",
+  "data": {
+    "runId": "run_abc123",
+    "status": "succeeded",
+    "tenantContext": {
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_12345",
+      "metadata": {
+        "requestId": "req_abc123"
+      }
+    }
+  }
+}
+```
+
+### Webhook Routing
+
+Use tenant context to route webhooks to tenant-specific endpoints:
+
+```typescript
+app.post('/webhooks/agentgate', (req, res) => {
+  const { tenantContext, ...event } = req.body.data;
+
+  // Route to tenant-specific handler
+  const tenantEndpoint = getTenantEndpoint(tenantContext.tenantId);
+  forwardToTenant(tenantEndpoint, event);
+
+  res.sendStatus(200);
+});
+```
+
+## Usage Attribution
+
+Tenant context enables usage tracking and billing:
+
+### Query Usage by Tenant
+
+```bash
+curl "https://api.agentgate.mynewapi.com/v1/credits/usage?tenantId=acme-corp" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+Response:
+
+```json
+{
+  "transactions": [
+    {
+      "type": "deduction",
+      "amount": 150,
+      "runId": "run_abc123",
+      "tenantId": "acme-corp",
+      "tenantUserId": "user_12345",
+      "createdAt": "2024-01-15T10:35:00Z"
+    }
+  ],
+  "total": 1500,
+  "period": {
+    "start": "2024-01-01T00:00:00Z",
+    "end": "2024-01-31T23:59:59Z"
+  }
+}
+```
+
+### Billing Integration
+
+Use usage data to bill your customers:
+
+```typescript
+// Get usage for billing period
+const usage = await client.credits.getUsage({
+  tenantId: 'acme-corp',
+  startDate: billingPeriodStart,
+  endDate: billingPeriodEnd
+});
+
+// Calculate cost with your margin
+const cost = usage.total * creditPriceCents * (1 + marginPercent);
+
+// Create invoice in your billing system
+await billingSystem.createInvoice({
+  customerId: 'acme-corp',
+  amount: cost,
+  description: 'AgentGate usage'
+});
+```
+
+## Best Practices
+
+### Consistent Tenant IDs
+
+Use consistent, stable identifiers:
+
+<Accordion title="Good Examples">
+```json
+// Database IDs
+{ "tenantId": "org_12345" }
+
+// Slugs
+{ "tenantId": "acme-corp" }
+
+// UUIDs
+{ "tenantId": "550e8400-e29b-41d4-a716-446655440000" }
+```
+</Accordion>
+
+<Accordion title="Avoid">
+```json
+// Mutable values
+{ "tenantId": "Acme Corporation" }  // Names change
+
+// Email addresses
+{ "tenantId": "admin@acme.com" }  // People leave
+
+// Temporary values
+{ "tenantId": "trial_123" }  // Status changes
+```
+</Accordion>
+
+### Metadata Guidelines
+
+Include useful context in metadata:
+
+```json
+{
+  "metadata": {
+    // Billing context
+    "costCenter": "engineering",
+    "budgetCode": "AI-2024",
+
+    // Request context
+    "requestId": "req_abc123",
+    "triggeredBy": "ci-pipeline",
+
+    // Feature context
+    "feature": "code-review",
+    "environment": "production"
+  }
+}
+```
+
+### Privacy Considerations
+
+<Warning>
+  Don't include personally identifiable information (PII) in tenant context unless necessary. Use opaque identifiers when possible.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Credits" icon="coins" href="/b2b/credits">
+    Track and manage credit usage
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/b2b/webhooks">
+    Receive tenant-aware notifications
+  </Card>
+</CardGroup>

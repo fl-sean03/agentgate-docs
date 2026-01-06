@@ -1,0 +1,37 @@
+---
+title: List Webhooks
+api: GET /v1/webhooks
+description: List all configured webhooks
+---
+
+<ResponseField name="webhooks" type="array">
+  Array of webhook configurations.
+</ResponseField>
+
+<Note>
+  Webhook secrets are never returned in list responses.
+</Note>
+
+<RequestExample>
+```bash cURL
+curl https://api.agentgate.mynewapi.com/v1/webhooks \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "webhooks": [
+    {
+      "id": "wh_abc123",
+      "url": "https://your-app.com/webhooks/agentgate",
+      "events": ["run.completed", "run.failed"],
+      "enabled": true,
+      "description": "Production webhook",
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+</ResponseExample>

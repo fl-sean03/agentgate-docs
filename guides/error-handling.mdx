@@ -1,0 +1,326 @@
+---
+title: Error Handling
+description: "Handle AgentGate errors gracefully"
+---
+
+# Error Handling
+
+This guide covers how to handle errors from the AgentGate API effectively.
+
+## Error Response Format
+
+All API errors follow a consistent format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description",
+    "details": {
+      // Additional context
+    }
+  }
+}
+```
+
+## Error Categories
+
+### Client Errors (4xx)
+
+Errors caused by the request. Fix the request before retrying.
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 400 | `INVALID_REQUEST` | Request validation failed |
+| 401 | `INVALID_API_KEY` | API key invalid or missing |
+| 402 | `INSUFFICIENT_CREDITS` | Not enough credits |
+| 403 | `INSUFFICIENT_PERMISSIONS` | API key lacks required scope |
+| 404 | `RESOURCE_NOT_FOUND` | Resource doesn't exist |
+| 429 | `RATE_LIMITED` | Too many requests |
+
+### Server Errors (5xx)
+
+Errors on AgentGate's side. Safe to retry with backoff.
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 500 | `INTERNAL_ERROR` | Unexpected server error |
+| 503 | `SERVICE_UNAVAILABLE` | Temporary unavailability |
+
+## Handling Specific Errors
+
+### Authentication Errors (401)
+
+```typescript
+try {
+  await client.workOrders.create(/* ... */);
+} catch (error) {
+  if (error.status === 401) {
+    if (error.code === 'INVALID_API_KEY') {
+      // API key is wrong or revoked
+      logger.error('Invalid API key - check configuration');
+      throw new ConfigurationError('Invalid API key');
+    }
+    if (error.code === 'MISSING_API_KEY') {
+      // API key not provided
+      logger.error('API key not configured');
+      throw new ConfigurationError('API key required');
+    }
+  }
+  throw error;
+}
+```
+
+### Insufficient Credits (402)
+
+```typescript
+try {
+  await client.workOrders.create(/* ... */);
+} catch (error) {
+  if (error.status === 402 && error.code === 'INSUFFICIENT_CREDITS') {
+    const { required, available } = error.details;
+
+    // Option 1: Notify user
+    await notifyUser(`Insufficient credits: need ${required}, have ${available}`);
+
+    // Option 2: Queue for later
+    await queueForLater(workOrder);
+
+    return { status: 'insufficient_credits', required, available };
+  }
+  throw error;
+}
+```
+
+### Rate Limiting (429)
+
+```typescript
+async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
+  const maxRetries = 3;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error.status === 429) {
+        const retryAfter = error.headers?.['retry-after'] || Math.pow(2, attempt);
+        logger.warn(`Rate limited, waiting ${retryAfter}s`);
+        await sleep(retryAfter * 1000);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Max retries exceeded');
+}
+
+// Usage
+const workOrder = await withRateLimitRetry(() =>
+  client.workOrders.create(/* ... */)
+);
+```
+
+### Validation Errors (400)
+
+```typescript
+try {
+  await client.workOrders.create({
+    taskPrompt: '', // Invalid: empty
+    workspaceSource: { type: 'git' } // Invalid: missing repository
+  });
+} catch (error) {
+  if (error.status === 400 && error.code === 'INVALID_REQUEST') {
+    const { errors } = error.details;
+
+    // errors might be:
+    // [
+    //   { field: 'taskPrompt', message: 'must not be empty' },
+    //   { field: 'workspaceSource.repository', message: 'is required' }
+    // ]
+
+    for (const err of errors) {
+      logger.error(`Validation error: ${err.field} - ${err.message}`);
+    }
+
+    throw new ValidationError('Invalid work order', errors);
+  }
+  throw error;
+}
+```
+
+### Server Errors (5xx)
+
+```typescript
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  options = { maxRetries: 3, baseDelay: 1000 }
+): Promise<T> {
+  const { maxRetries, baseDelay } = options;
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Only retry 5xx errors
+      if (error.status >= 500) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        logger.warn(`Server error, retrying in ${delay}ms`, { attempt, error });
+        await sleep(delay);
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
+}
+```
+
+## SDK Error Types
+
+The TypeScript SDK provides typed error classes:
+
+```typescript
+import {
+  AgentGateError,
+  AuthenticationError,
+  AuthorizationError,
+  ValidationError,
+  PaymentError,
+  NotFoundError,
+  RateLimitError,
+  ServerError
+} from '@agentgate/sdk';
+
+try {
+  await client.workOrders.create(/* ... */);
+} catch (error) {
+  if (error instanceof AuthenticationError) {
+    // Handle auth issues
+  } else if (error instanceof PaymentError) {
+    // Handle credit issues
+  } else if (error instanceof RateLimitError) {
+    // Handle rate limiting
+  } else if (error instanceof ServerError) {
+    // Handle server errors
+  } else if (error instanceof AgentGateError) {
+    // Handle other API errors
+  } else {
+    // Handle non-API errors (network, etc.)
+  }
+}
+```
+
+## Run Failures
+
+Run failures are different from API errors. The API call succeeds, but the run itself fails.
+
+### Checking Run Status
+
+```typescript
+const run = await client.runs.get(runId);
+
+if (run.status === 'failed') {
+  const { error } = run;
+
+  switch (error.code) {
+    case 'MAX_ITERATIONS_REACHED':
+      // Task didn't converge
+      logger.warn('Run did not converge', { runId, iterations: run.iterations });
+      break;
+
+    case 'VERIFICATION_FAILED':
+      // Verification never passed
+      logger.warn('Verification failed', { runId, details: error.details });
+      break;
+
+    case 'WORKSPACE_ERROR':
+      // Problem with workspace setup
+      logger.error('Workspace error', { runId, details: error.details });
+      break;
+
+    default:
+      logger.error('Run failed', { runId, error });
+  }
+}
+```
+
+### Webhook Error Handling
+
+```typescript
+app.post('/webhooks/agentgate', async (req, res) => {
+  res.sendStatus(200);
+
+  const event = req.body;
+
+  if (event.type === 'run.failed') {
+    const { runId, error, tenantContext } = event.data;
+
+    // Log for debugging
+    logger.error('Run failed', { runId, error });
+
+    // Notify affected user
+    if (tenantContext?.tenantUserId) {
+      await notifyUser(tenantContext.tenantUserId, {
+        type: 'run_failed',
+        runId,
+        message: error.message
+      });
+    }
+
+    // Potentially retry
+    if (error.code === 'MAX_ITERATIONS_REACHED') {
+      // Maybe try with more iterations or refined prompt
+      await retryWithAdjustments(event.data);
+    }
+  }
+});
+```
+
+## Error Monitoring
+
+### Logging Best Practices
+
+```typescript
+// Include correlation IDs
+const requestId = generateId();
+
+try {
+  logger.info('Creating work order', { requestId });
+  const workOrder = await client.workOrders.create(/* ... */);
+  logger.info('Work order created', { requestId, runId: workOrder.runId });
+} catch (error) {
+  logger.error('Failed to create work order', {
+    requestId,
+    error: {
+      code: error.code,
+      message: error.message,
+      status: error.status
+    }
+  });
+  throw error;
+}
+```
+
+### Metrics to Track
+
+- Error rate by type (4xx vs 5xx)
+- Rate limit hits
+- Run failure rate by error code
+- Retry success rate
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Error Codes" icon="circle-exclamation" href="/reference/error-codes">
+    Complete error code reference
+  </Card>
+  <Card title="Rate Limits" icon="gauge" href="/reference/rate-limits">
+    Rate limit details
+  </Card>
+</CardGroup>
